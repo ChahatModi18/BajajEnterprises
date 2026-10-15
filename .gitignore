@@ -1,0 +1,22 @@
+# Python & Virtualenv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
+
+# Node & Frontend
+node_modules/
+dist/
+.DS_Store
+
+# Uploaded runtime media
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/*.svg
+
+# Environment secrets
+.env
+backend/.env
+.vercel/

@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: bajaj_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bajaj_enterprises
+      MYSQL_USER: bajaj_user
+      MYSQL_PASSWORD: bajaj_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: ./backend
+    container_name: bajaj_backend
+    restart: always
+    environment:
+      DATABASE_URL: mysql+pymysql://bajaj_user:bajaj_password@mysql:3306/bajaj_enterprises?charset=utf8mb4
+      SECRET_KEY: change-this-secure-secret-key-in-production-2026
+      ENVIRONMENT: production
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - mysql
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: bajaj_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
