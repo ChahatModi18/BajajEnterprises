@@ -1,7 +1,10 @@
 import { 
+  fallbackAttributes,
   fallbackBanners, 
   fallbackBrands, 
   fallbackCategories, 
+  fallbackEnquiries,
+  fallbackOrders,
   fallbackProducts, 
   fallbackSchemes, 
   fallbackSettings 
@@ -26,11 +29,13 @@ export function removeAuthToken(): void {
 
 // Fallback resolver for when backend server is offline or deployed as static frontend
 function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
-  const cleanEndpoint = endpoint.split('?')[0].replace(/\/$/, '');
+  const rawPath = endpoint.split('?')[0].replace(/\/$/, '');
+  // Normalize both public and admin routes (e.g. /admin/products -> /products)
+  const cleanEndpoint = rawPath.replace(/^\/admin/, '') || '/';
   const method = (options.method || 'GET').toUpperCase();
 
-  // Handle Admin Login offline
-  if (cleanEndpoint === '/auth/login' && method === 'POST') {
+  // Handle Admin Login
+  if ((rawPath === '/auth/login' || cleanEndpoint === '/auth/login') && method === 'POST') {
     let email = '';
     let password = '';
     try {
@@ -60,8 +65,8 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     throw new Error('Invalid email or password. Use admin@bajajenterprises.com / Admin@Bajaj2026');
   }
 
-  // Handle /auth/me offline
-  if (cleanEndpoint === '/auth/me') {
+  // Handle /auth/me
+  if (rawPath === '/auth/me' || cleanEndpoint === '/auth/me') {
     const savedUser = localStorage.getItem('bajaj_admin_user');
     if (savedUser) {
       try {
@@ -78,12 +83,23 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     } as unknown as T;
   }
 
-  // Handle Store Settings
+  // Handle Store Settings & Content Editor
   if (cleanEndpoint === '/settings') {
+    if (method === 'PUT' || method === 'POST') {
+      try {
+        if (typeof options.body === 'string') {
+          const updated = JSON.parse(options.body);
+          localStorage.setItem('bajaj_saved_settings', JSON.stringify(updated));
+          return updated as unknown as T;
+        }
+      } catch {
+        // ignore
+      }
+    }
     const saved = localStorage.getItem('bajaj_saved_settings');
     if (saved) {
       try {
-        return { ...fallbackSettings, ...JSON.parse(saved) };
+        return { ...fallbackSettings, ...JSON.parse(saved) } as unknown as T;
       } catch {
         // ignore
       }
@@ -101,6 +117,11 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     return fallbackCategories as unknown as T;
   }
 
+  // Handle Dynamic Attributes
+  if (cleanEndpoint === '/attributes') {
+    return fallbackAttributes as unknown as T;
+  }
+
   // Handle Banners
   if (cleanEndpoint === '/banners') {
     return fallbackBanners as unknown as T;
@@ -111,7 +132,44 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     return fallbackSchemes as unknown as T;
   }
 
-  // Handle Products List & Search
+  // Handle Enquiries
+  if (cleanEndpoint === '/enquiries') {
+    if (method === 'POST') {
+      return {
+        id: Date.now(),
+        reference_no: 'ENQ-' + Math.floor(100000 + Math.random() * 900000),
+        status: 'NEW',
+        message: 'Enquiry received successfully. Our team will contact you shortly.',
+      } as unknown as T;
+    }
+    return fallbackEnquiries as unknown as T;
+  }
+
+  // Handle Order Requests
+  if (cleanEndpoint === '/orders' || cleanEndpoint === '/order-requests') {
+    if (method === 'POST') {
+      return {
+        id: Date.now(),
+        reference_no: 'ORD-' + Math.floor(100000 + Math.random() * 900000),
+        status: 'RECEIVED',
+        message: 'Order reservation placed successfully.',
+      } as unknown as T;
+    }
+    return fallbackOrders as unknown as T;
+  }
+
+  // Handle Image & Catalogue Photo Uploads in Studio
+  if (cleanEndpoint.includes('/media/upload') || cleanEndpoint.includes('/upload')) {
+    return {
+      id: Date.now(),
+      image_url: '/uploads/demo_avon_city_001.svg',
+      thumbnail_url: '/uploads/demo_avon_city_001.svg',
+      is_primary: true,
+      sort_order: 1,
+    } as unknown as T;
+  }
+
+  // Handle Products List & Search (Supports both public /products and /admin/products)
   if (cleanEndpoint === '/products') {
     const urlParams = new URLSearchParams(endpoint.includes('?') ? endpoint.split('?')[1] : '');
     const brandSlug = urlParams.get('brand_slug') || urlParams.get('brand');
@@ -147,26 +205,6 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     const identifier = cleanEndpoint.replace('/products/', '');
     const product = fallbackProducts.find(p => p.slug === identifier || p.id?.toString() === identifier) || fallbackProducts[0];
     return product as unknown as T;
-  }
-
-  // Handle Enquiries Submit
-  if (cleanEndpoint === '/enquiries' && method === 'POST') {
-    return {
-      id: Date.now(),
-      reference_no: 'ENQ-' + Math.floor(100000 + Math.random() * 900000),
-      status: 'new',
-      message: 'Enquiry received successfully. Our team will contact you shortly.',
-    } as unknown as T;
-  }
-
-  // Handle Order Requests Submit
-  if (cleanEndpoint === '/orders' && method === 'POST') {
-    return {
-      id: Date.now(),
-      reference_no: 'ORD-' + Math.floor(100000 + Math.random() * 900000),
-      status: 'pending',
-      message: 'Order reservation placed successfully.',
-    } as unknown as T;
   }
 
   return [] as unknown as T;
@@ -227,7 +265,7 @@ export async function apiRequest<T = any>(
 
     return response.text() as any;
   } catch (err: any) {
-    // If backend is not running or network request failed, use resilient fallback data
+    // If backend is offline or network request failed, use resilient fallback demo data
     return resolveFallback<T>(endpoint, options);
   }
 }
