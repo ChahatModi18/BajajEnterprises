@@ -32,12 +32,16 @@ export const HomePage: React.FC = () => {
           apiRequest<{ items: Product[] }>('/products?page_size=8'),
           apiRequest<Scheme[]>('/schemes'),
         ]);
-        setBanners(bannersData);
-        setBrands(brandsData);
-        setCategories(catsData);
-        setSchemes(schemesData);
+        const bannersArr = Array.isArray(bannersData) ? bannersData : [];
+        const brandsArr = Array.isArray(brandsData) ? brandsData : [];
+        const catsArr = Array.isArray(catsData) ? catsData : [];
+        const schemesArr = Array.isArray(schemesData) ? schemesData : [];
+        setBanners(bannersArr);
+        setBrands(brandsArr);
+        setCategories(catsArr);
+        setSchemes(schemesArr);
 
-        const items = prodsData.items || [];
+        const items = (prodsData && Array.isArray(prodsData.items)) ? prodsData.items : [];
         setFeaturedProducts(items.filter(p => p.is_featured));
         setNewArrivals(items.filter(p => p.is_new_arrival));
       } catch (err) {

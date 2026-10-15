@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <linearGradient id="bg_0284c7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#bg_0284c7)"/>
+  <rect x="40" y="40" width="720" height="520" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <g transform="translate(400, 260)">
+    <!-- Bicycle Wheels -->
+    <circle cx="-160" cy="60" r="90" fill="none" stroke="#334155" stroke-width="12"/>
+    <circle cx="-160" cy="60" r="16" fill="#64748b"/>
+    <circle cx="160" cy="60" r="90" fill="none" stroke="#334155" stroke-width="12"/>
+    <circle cx="160" cy="60" r="16" fill="#64748b"/>
+    <!-- Spokes -->
+    <line x1="-160" y1="-30" x2="-160" y2="150" stroke="#94a3b8" stroke-width="3"/>
+    <line x1="-250" y1="60" x2="-70" y2="60" stroke="#94a3b8" stroke-width="3"/>
+    <line x1="160" y1="-30" x2="160" y2="150" stroke="#94a3b8" stroke-width="3"/>
+    <line x1="70" y1="60" x2="250" y2="60" stroke="#94a3b8" stroke-width="3"/>
+    <!-- Frame -->
+    <polyline points="-160,60 -30,60 100,-70 -50,-70 -160,60" fill="none" stroke="#0284c7" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="-30,60 160,60 100,-70" fill="none" stroke="#0284c7" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Handlebar & Fork -->
+    <line x1="160" y1="60" x2="110" y2="-90" stroke="#475569" stroke-width="14" stroke-linecap="round"/>
+    <line x1="90" y1="-95" x2="135" y2="-95" stroke="#1e293b" stroke-width="16" stroke-linecap="round"/>
+    <!-- Seat -->
+    <line x1="-30" y1="60" x2="-65" y2="-85" stroke="#475569" stroke-width="14" stroke-linecap="round"/>
+    <path d="M -100 -95 C -100 -105, -50 -105, -30 -90" fill="none" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
+    <!-- Pedal Crank -->
+    <circle cx="-30" cy="60" r="22" fill="#0f172a"/>
+  </g>
+  <rect x="250" y="440" width="300" height="32" rx="16" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="400" y="461" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#b45309" text-anchor="middle">DEMO PRODUCT — ILLUSTRATIVE ONLY</text>
+  <text x="400" y="505" font-family="system-ui, sans-serif" font-size="22" font-weight="bold" fill="#0f172a" text-anchor="middle">AVON Sample Junior Star 20T</text>
+  <text x="400" y="530" font-family="system-ui, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">Kids 20T • Sky Blue • Trainer Wheels</text>
+</svg>

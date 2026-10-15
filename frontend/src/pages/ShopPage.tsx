@@ -39,8 +39,8 @@ export const ShopPage: React.FC = () => {
           apiRequest<Brand[]>('/brands'),
           apiRequest<Category[]>('/categories'),
         ]);
-        setBrands(b);
-        setCategories(c);
+        setBrands(Array.isArray(b) ? b : []);
+        setCategories(Array.isArray(c) ? c : []);
       } catch (err) {
         console.error('Failed to load filter metadata', err);
       }
@@ -67,9 +67,9 @@ export const ShopPage: React.FC = () => {
         if (availability) params.set('availability', availability);
 
         const res = await apiRequest<ProductListResponse>(`/products?${params.toString()}`);
-        setProducts(res.items);
-        setTotalCount(res.total);
-        setTotalPages(res.total_pages);
+        setProducts(res && Array.isArray(res.items) ? res.items : []);
+        setTotalCount(res && typeof res.total === 'number' ? res.total : 0);
+        setTotalPages(res && typeof res.total_pages === 'number' ? res.total_pages : 1);
       } catch (err) {
         console.error('Failed to fetch catalogue', err);
       } finally {

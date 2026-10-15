@@ -40,6 +40,8 @@ import { AdminBannersPage } from './pages/admin/AdminBannersPage';
 import { AdminSchemesPage } from './pages/admin/AdminSchemesPage';
 import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
 
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+
 // Protected Admin Route Guard
 const ProtectedAdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -61,78 +63,80 @@ function ScrollToTop() {
 
 export function App() {
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <SettingsProvider>
-        <AuthProvider>
-          <HelpProvider>
-            <CartProvider>
-              <WishlistProvider>
-                <Routes>
-                  {/* Admin Auth Route */}
-                  <Route path="/admin/login" element={<AdminLoginPage />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <ScrollToTop />
+        <SettingsProvider>
+          <AuthProvider>
+            <HelpProvider>
+              <CartProvider>
+                <WishlistProvider>
+                  <Routes>
+                    {/* Admin Auth Route */}
+                    <Route path="/admin/login" element={<AdminLoginPage />} />
 
-                  {/* Protected Admin Routes */}
-                  <Route
-                    path="/admin"
-                    element={
-                      <ProtectedAdminRoute>
-                        <AdminLayout />
-                      </ProtectedAdminRoute>
-                    }
-                  >
-                    <Route index element={<AdminOverviewPage />} />
-                    <Route path="catalogue-studio" element={<AdminCatalogueStudioPage />} />
-                    <Route path="content" element={<AdminContentPage />} />
-                    <Route path="products" element={<AdminProductsPage />} />
-                    <Route path="attributes" element={<AdminAttributesPage />} />
-                    <Route path="brands" element={<AdminBrandsPage />} />
-                    <Route path="categories" element={<AdminCategoriesPage />} />
-                    <Route path="import" element={<AdminImportPage />} />
-                    <Route path="enquiries" element={<AdminEnquiriesPage />} />
-                    <Route path="orders" element={<AdminOrdersPage />} />
-                    <Route path="banners" element={<AdminBannersPage />} />
-                    <Route path="schemes" element={<AdminSchemesPage />} />
-                    <Route path="settings" element={<AdminSettingsPage />} />
-                  </Route>
+                    {/* Protected Admin Routes */}
+                    <Route
+                      path="/admin"
+                      element={
+                        <ProtectedAdminRoute>
+                          <AdminLayout />
+                        </ProtectedAdminRoute>
+                      }
+                    >
+                      <Route index element={<AdminOverviewPage />} />
+                      <Route path="catalogue-studio" element={<AdminCatalogueStudioPage />} />
+                      <Route path="content" element={<AdminContentPage />} />
+                      <Route path="products" element={<AdminProductsPage />} />
+                      <Route path="attributes" element={<AdminAttributesPage />} />
+                      <Route path="brands" element={<AdminBrandsPage />} />
+                      <Route path="categories" element={<AdminCategoriesPage />} />
+                      <Route path="import" element={<AdminImportPage />} />
+                      <Route path="enquiries" element={<AdminEnquiriesPage />} />
+                      <Route path="orders" element={<AdminOrdersPage />} />
+                      <Route path="banners" element={<AdminBannersPage />} />
+                      <Route path="schemes" element={<AdminSchemesPage />} />
+                      <Route path="settings" element={<AdminSettingsPage />} />
+                    </Route>
 
-                {/* Public Storefront Routes with Navbar & Footer */}
-                <Route
-                  path="*"
-                  element={
-                    <div className="flex flex-col min-h-screen">
-                      <Navbar />
-                      <main className="flex-1">
-                        <Routes>
-                          <Route path="/" element={<HomePage />} />
-                          <Route path="/shop" element={<ShopPage />} />
-                          <Route path="/search" element={<ShopPage />} />
-                          <Route path="/brand/:slug" element={<BrandPage />} />
-                          <Route path="/category/:slug" element={<CategoryPage />} />
-                          <Route path="/product/:slug" element={<ProductDetailPage />} />
-                          <Route path="/schemes" element={<SchemesPage />} />
-                          <Route path="/cart" element={<CartPage />} />
-                          <Route path="/checkout" element={<CheckoutPage />} />
-                          <Route path="/wishlist" element={<WishlistPage />} />
-                          <Route path="/about" element={<AboutPage />} />
-                          <Route path="/contact" element={<ContactPage />} />
-                          <Route path="/policies/:policyType" element={<PoliciesPage />} />
-                          <Route path="/policies" element={<PoliciesPage />} />
-                          <Route path="/faq" element={<PoliciesPage />} />
-                          <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                      </main>
-                      <Footer />
-                    </div>
-                  }
-                />
-              </Routes>
-            </WishlistProvider>
-          </CartProvider>
-        </HelpProvider>
-      </AuthProvider>
-    </SettingsProvider>
-  </BrowserRouter>
+                    {/* Public Storefront Routes with Navbar & Footer */}
+                    <Route
+                      path="*"
+                      element={
+                        <div className="flex flex-col min-h-screen">
+                          <Navbar />
+                          <main className="flex-1">
+                            <Routes>
+                              <Route path="/" element={<HomePage />} />
+                              <Route path="/shop" element={<ShopPage />} />
+                              <Route path="/search" element={<ShopPage />} />
+                              <Route path="/brand/:slug" element={<BrandPage />} />
+                              <Route path="/category/:slug" element={<CategoryPage />} />
+                              <Route path="/product/:slug" element={<ProductDetailPage />} />
+                              <Route path="/schemes" element={<SchemesPage />} />
+                              <Route path="/cart" element={<CartPage />} />
+                              <Route path="/checkout" element={<CheckoutPage />} />
+                              <Route path="/wishlist" element={<WishlistPage />} />
+                              <Route path="/about" element={<AboutPage />} />
+                              <Route path="/contact" element={<ContactPage />} />
+                              <Route path="/policies/:policyType" element={<PoliciesPage />} />
+                              <Route path="/policies" element={<PoliciesPage />} />
+                              <Route path="/faq" element={<PoliciesPage />} />
+                              <Route path="*" element={<Navigate to="/" replace />} />
+                            </Routes>
+                          </main>
+                          <Footer />
+                        </div>
+                      }
+                    />
+                  </Routes>
+                </WishlistProvider>
+              </CartProvider>
+            </HelpProvider>
+          </AuthProvider>
+        </SettingsProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
