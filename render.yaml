@@ -17,17 +17,11 @@ services:
         value: production
       - key: CORS_ORIGINS
         value: '["https://www.bajajenterprises.com","https://bajajenterprises.com","*"]'
-    disk:
-      name: uploads-data
-      mountPath: /app/uploads
-      sizeGB: 1
 
   # 2. React Vite Frontend Static Site
   - type: web
     name: bajaj-frontend
     env: static
-    region: oregon
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
