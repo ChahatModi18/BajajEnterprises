@@ -34,11 +34,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedUser = localStorage.getItem('bajaj_admin_user');
       if (token && storedUser) {
         try {
-          const verifiedUser = await apiRequest('/auth/me');
-          setUser(verifiedUser);
+          const verifiedUser: any = await apiRequest('/auth/me');
+          setUser({
+            ...verifiedUser,
+            role: (verifiedUser?.role || 'ADMIN').toUpperCase(),
+          });
         } catch {
-          removeAuthToken();
-          setUser(null);
+          try {
+            const parsed = JSON.parse(storedUser);
+            setUser({
+              ...parsed,
+              role: (parsed.role || 'ADMIN').toUpperCase(),
+            });
+          } catch {
+            removeAuthToken();
+            setUser(null);
+          }
         }
       } else {
         removeAuthToken();
@@ -50,9 +61,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = (token: string, userData: AdminUser) => {
+    const normalizedUser = {
+      ...userData,
+      role: (userData.role || 'ADMIN').toUpperCase(),
+    };
     setAuthToken(token);
-    localStorage.setItem('bajaj_admin_user', JSON.stringify(userData));
-    setUser(userData);
+    localStorage.setItem('bajaj_admin_user', JSON.stringify(normalizedUser));
+    setUser(normalizedUser);
   };
 
   const logout = () => {

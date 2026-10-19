@@ -44,10 +44,14 @@ export const AdminLoginPage: React.FC = () => {
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
+      const role = (res.role || res.user?.role || 'ADMIN').toUpperCase();
+      const userEmail = res.email || res.user?.email || email.trim() || 'admin@bajajenterprises.com';
+      const fullName = res.full_name || res.user?.full_name || 'Store Owner';
+
       login(res.access_token, {
-        email: res.email,
-        full_name: res.full_name,
-        role: res.role,
+        email: userEmail,
+        full_name: fullName,
+        role: role,
       });
 
       navigate('/admin');

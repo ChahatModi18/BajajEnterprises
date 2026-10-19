@@ -49,18 +49,22 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     }
     const currentValidPassword = localStorage.getItem('bajaj_custom_admin_password') || 'Admin@Bajaj2026';
     if (email.toLowerCase() === 'admin@bajajenterprises.com' && (password === currentValidPassword || password === 'Admin@Bajaj2026')) {
+      const userData = {
+        id: 1,
+        email: 'admin@bajajenterprises.com',
+        full_name: 'Store Owner',
+        role: 'ADMIN',
+      };
       const authResponse = {
         access_token: 'bajaj_live_persistent_token_' + Date.now(),
         token_type: 'bearer',
-        user: {
-          id: 1,
-          email: 'admin@bajajenterprises.com',
-          full_name: 'Store Owner',
-          role: 'ADMIN',
-        },
+        role: 'ADMIN',
+        email: 'admin@bajajenterprises.com',
+        full_name: 'Store Owner',
+        user: userData,
       };
       setAuthToken(authResponse.access_token);
-      localStorage.setItem('bajaj_admin_user', JSON.stringify(authResponse.user));
+      localStorage.setItem('bajaj_admin_user', JSON.stringify(userData));
       return authResponse as unknown as T;
     }
     throw new Error(`Invalid email or password. Master hint: default is Admin@Bajaj2026`);
@@ -123,7 +127,13 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     const savedUser = localStorage.getItem('bajaj_admin_user');
     if (savedUser) {
       try {
-        return JSON.parse(savedUser);
+        const parsed = JSON.parse(savedUser);
+        return {
+          id: parsed.id || 1,
+          email: parsed.email || 'admin@bajajenterprises.com',
+          full_name: parsed.full_name || 'Store Owner',
+          role: (parsed.role || 'ADMIN').toUpperCase(),
+        } as unknown as T;
       } catch {
         // ignore
       }
@@ -132,7 +142,7 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
       id: 1,
       email: 'admin@bajajenterprises.com',
       full_name: 'Store Owner',
-      role: 'admin',
+      role: 'ADMIN',
     } as unknown as T;
   }
 
