@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { 
   Bike, AlertCircle, EyeOff, MessageSquare, 
   ShoppingBag, Sparkles, ArrowRight, UploadCloud, Plus 
 } from 'lucide-react';
 import { apiRequest } from '../../utils/api';
 import { Product, Enquiry, OrderRequest, Scheme } from '../../types';
-
+import { useAuth } from '../../context/AuthContext';
 import { useHelp } from '../../context/HelpContext';
 import { BookOpen, FileEdit, HelpCircle } from 'lucide-react';
 
 export const AdminOverviewPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const { isHelpMode } = useHelp();
   const [stats, setStats] = useState({
     activeProducts: 0,
@@ -61,6 +62,18 @@ export const AdminOverviewPage: React.FC = () => {
     }
     loadDashboardStats();
   }, []);
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-8">

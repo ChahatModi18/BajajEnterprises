@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Heart, Search, MapPin, Phone, 
-  Menu, X, ShieldCheck, ChevronDown, MessageSquare
+  Menu, X, ChevronDown, MessageSquare
 } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 import { useCart } from '../../context/CartContext';
@@ -51,15 +51,6 @@ export const Navbar: React.FC = () => {
                 Hours: {settings.opening_hours}
               </span>
             )}
-
-            <Link 
-              to="/admin" 
-              className="hidden sm:flex items-center gap-1 text-slate-400 hover:text-white border-l border-slate-700 pl-3 transition"
-              title="Admin Portal"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Admin Portal</span>
-            </Link>
           </div>
         </div>
       </div>
@@ -229,10 +220,7 @@ export const Navbar: React.FC = () => {
             <Link to="/schemes" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md font-bold text-amber-600 hover:bg-amber-50">Schemes & Offers</Link>
             <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md hover:bg-slate-100">About Bajaj Enterprises</Link>
             <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md hover:bg-slate-100">Store Directions & Contact</Link>
-            <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md bg-slate-100 text-slate-800 flex items-center gap-1.5 font-semibold">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Admin Portal</span>
-            </Link>
+
           </div>
         </div>
       )}

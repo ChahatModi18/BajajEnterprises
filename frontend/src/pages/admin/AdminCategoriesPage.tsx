@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { FolderTree, Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { Category } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminCategoriesPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -100,6 +103,18 @@ export const AdminCategoriesPage: React.FC = () => {
       alert(err.message || 'Delete failed.');
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-6">

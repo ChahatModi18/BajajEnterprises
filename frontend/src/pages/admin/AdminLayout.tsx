@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Bike, BookOpen, FileEdit, Sliders, Tag, FolderTree, 
   Image as ImageIcon, Sparkles, UploadCloud, MessageSquare, 
@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useHelp } from '../../context/HelpContext';
 
 export const AdminLayout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   const { isHelpMode, toggleHelpMode } = useHelp();
   const location = useLocation();
   const navigate = useNavigate();
@@ -18,6 +18,18 @@ export const AdminLayout: React.FC = () => {
     logout();
     navigate('/admin/login');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-slate-400 text-sm">
+        Verifying administrator authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   const navLinks = [
     { to: '/admin', label: 'Overview (डैशबोर्ड)', icon: LayoutDashboard, exact: true },

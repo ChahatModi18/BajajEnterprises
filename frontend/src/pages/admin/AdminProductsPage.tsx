@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { 
   Bike, Plus, Edit, Copy, Trash2, Search, 
   Check, X, Upload, Star, Eye, Image as ImageIcon, AlertCircle 
 } from 'lucide-react';
 import { Product, Brand, Category, ProductAttribute } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminProductsPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -227,6 +230,18 @@ export const AdminProductsPage: React.FC = () => {
     if (categoryFilter && p.category_id !== Number(categoryFilter)) return false;
     return true;
   });
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-6">

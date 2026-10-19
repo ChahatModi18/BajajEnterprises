@@ -30,3 +30,12 @@ class UserResponse(BaseModel):
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+class OTPRequest(BaseModel):
+    mobile: str
+    email: Optional[EmailStr] = "admin@bajajenterprises.com"
+
+class ResetPasswordOTPRequest(BaseModel):
+    mobile: str
+    otp: str
+    new_password: str

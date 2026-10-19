@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { 
   UploadCloud, FileSpreadsheet, CheckCircle2, 
   AlertTriangle, ArrowRight, RefreshCw, FileText 
 } from 'lucide-react';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminImportPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [importId, setImportId] = useState<number | null>(null);
@@ -68,6 +71,18 @@ export const AdminImportPage: React.FC = () => {
       setCommitting(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-8">

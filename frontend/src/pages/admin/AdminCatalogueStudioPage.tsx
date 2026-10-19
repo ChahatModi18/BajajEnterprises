@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { 
   BookOpen, Plus, Camera, Upload, Trash2, Printer, 
   Search, Eye, Check, AlertCircle, Edit, Star, Sparkles, 
@@ -6,10 +7,12 @@ import {
 } from 'lucide-react';
 import { Product, Brand, Category, ProductAttribute } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useHelp } from '../../context/HelpContext';
 
 export const AdminCatalogueStudioPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const { settings } = useSettings();
   const { isHelpMode } = useHelp();
 
@@ -287,6 +290,18 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     const matchesCat = categoryFilter ? p.category?.slug === categoryFilter : true;
     return matchesSearch && matchesBrand && matchesCat;
   });
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-6">

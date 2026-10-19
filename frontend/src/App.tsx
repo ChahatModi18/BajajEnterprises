@@ -44,9 +44,9 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Protected Admin Route Guard
 const ProtectedAdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   if (loading) return null;
-  if (!isAuthenticated) {
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
     return <Navigate to="/admin/login" replace />;
   }
   return children;

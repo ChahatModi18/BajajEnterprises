@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { 
   Sliders, Plus, Edit2, Trash2, Check, X, 
   Eye, EyeOff, Save, AlertCircle, Sparkles 
 } from 'lucide-react';
 import { ProductAttribute, Category } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminAttributesPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,6 +164,18 @@ export const AdminAttributesPage: React.FC = () => {
       alert(err.message || 'Failed to delete attribute.');
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-6">

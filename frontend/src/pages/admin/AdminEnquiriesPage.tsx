@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { 
   MessageSquare, Download, Check, AlertCircle, 
   Search, Phone, Mail, Clock, Edit2 
 } from 'lucide-react';
 import { Enquiry } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminEnquiriesPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -66,6 +69,18 @@ export const AdminEnquiriesPage: React.FC = () => {
   const handleExportCSV = () => {
     window.open('/api/v1/admin/enquiries/export', '_blank');
   };
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-6">

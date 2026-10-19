@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Sparkles, Plus, Edit2, Trash2, Check, X, Calendar, Tag } from 'lucide-react';
 import { Scheme } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminSchemesPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -112,6 +115,18 @@ export const AdminSchemesPage: React.FC = () => {
       alert(err.message || 'Failed to delete scheme.');
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   return (
     <div className="space-y-6">

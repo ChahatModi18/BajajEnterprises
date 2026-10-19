@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Mail, Clock, ExternalLink, Shield } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, ExternalLink } from 'lucide-react';
 import { useSettings } from '../../context/SettingsContext';
 
 export const Footer: React.FC = () => {
@@ -113,15 +113,6 @@ export const Footer: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-2 flex items-center gap-2">
-              <Link
-                to="/admin"
-                className="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1 transition"
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>Authorized Owner Login</span>
-              </Link>
-            </div>
           </div>
         </div>
 

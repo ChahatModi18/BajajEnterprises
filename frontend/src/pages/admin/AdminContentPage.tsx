@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { 
   FileEdit, Save, Check, HelpCircle, Eye, 
   Home, Info, PhoneCall, ShieldAlert, Share2, Sparkles, AlertCircle 
 } from 'lucide-react';
 import { StoreSettings } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useHelp } from '../../context/HelpContext';
 
 export const AdminContentPage: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const { refreshSettings } = useSettings();
   const { isHelpMode } = useHelp();
   const [activeTab, setActiveTab] = useState<'home' | 'about' | 'contact' | 'policies' | 'social'>('home');
@@ -88,6 +91,18 @@ export const AdminContentPage: React.FC = () => {
       setSaving(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Verifying admin authorization...
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || user?.role?.toUpperCase() !== 'ADMIN') {
+    return <Navigate to="/admin/login" replace />;
+  }
 
   if (loading) {
     return (
