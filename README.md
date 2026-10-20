@@ -1,197 +1,104 @@
-# BAJAJ ENTERPRISES — FULL-STACK BICYCLE E-COMMERCE PLATFORM
+# BAJAJ ENTERPRISES — FULL-STACK BICYCLE E-COMMERCE & SHOWROOM MANAGEMENT PLATFORM
 
-> **Official Store Location:** Alakh Sagar Road, Kote Gate, Bikaner, Rajasthan 334001, India  
-> **Dealership Portfolio:** AVON, HERCULES, and administrator-managed bicycle brands.
+[![Production Deployment](https://img.shields.io/badge/Vercel-Live_Storefront-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://bajajenterprises.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-ChahatModi18%2FBajajEnterprises-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ChahatModi18/BajajEnterprises)
+[![Backend](https://img.shields.io/badge/FastAPI-Python_3.11-009688?style=for-the-badge&logo=fastapi&logoColor=white)](http://127.0.0.1:8000/docs)
+[![Frontend](https://img.shields.io/badge/React_18-TypeScript_+_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](http://localhost:5173)
 
----
-
-## 1. System Overview
-
-A full-stack, production-oriented multi-page bicycle e-commerce and retail management platform built for **Bajaj Enterprises** in Bikaner.
-
-The platform provides a responsive customer storefront alongside an administration control panel. The store owner can manage products, bicycle specifications (via a dynamic custom attributes system), photographs, bulk catalogues, promotional schemes, stock status, customer enquiries, order reservations, and store contact info without modifying source code.
-
-### Core Technology Stack
-
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Lucide React, React Router v6.
-- **Backend:** Python 3.11, FastAPI, Pydantic v2, SQLAlchemy 2.x, Alembic, Bcrypt, PyJWT.
-- **Database:** Dual-Engine architecture supporting MySQL 8.0 (with JSON attributes and transactions) and SQLite (zero-config local dev & automated testing).
-- **Security:** Password hashing with Bcrypt (cost factor 12), JWT Bearer tokens, CORS controls, honeypot spam protection, parameterised SQL queries.
+> **Official Showroom Location:** Alakh Sagar Road, Kote Gate, Bikaner, Rajasthan 334001, India  
+> **Dealership Portfolio:** AVON, HERCULES, and custom multi-category bicycles.  
+> **Production Website:** [https://bajajenterprises.vercel.app](https://bajajenterprises.vercel.app)  
+> **Admin Portal Login:** [https://bajajenterprises.vercel.app/admin/login](https://bajajenterprises.vercel.app/admin/login)
 
 ---
 
-## 2. Quick Start & Local Setup
+## 📖 Complete Documentation Suite (`/docs`)
 
-### Prerequisites
-- Node.js v18+ & npm
-- Python 3.11+
+This repository includes a comprehensive, production-grade technical and architectural documentation suite:
 
-### Step 1: Clone & Environment Setup
+| Document | Title & Focus Area |
+|---|---|
+| **[PRD.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/PRD.md)** | **Product Requirements Document:** Business problem statement, retail & wholesale user personas, functional specifications, and KPIs. |
+| **[DESIGN.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/DESIGN.md)** | **UI/UX Design Specification:** Design tokens, Tailwind palettes, typography (Outfit & Inter), bilingual Hindi/English guidance, and component patterns. |
+| **[ARCHITECTURE.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/ARCHITECTURE.md)** | **Technical Architecture:** Decoupled SPA + FastAPI architecture, Mermaid flowcharts, and the Resilient Hybrid Fallback Engine (`api.ts`). |
+| **[DATABASE.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/DATABASE.md)** | **Database Schema & Models:** Relational ER diagram, table schemas, dynamic custom attributes (EAV pattern), indexing, and Alembic migrations. |
+| **[API.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/API.md)** | **REST API Reference:** Public storefront & protected admin endpoints, request/response models, Bearer JWT authentication, and status codes. |
+| **[IMPLEMENTATION_AND_SETUP.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/IMPLEMENTATION_AND_SETUP.md)** | **Installation & Setup Guide:** Environment variables matrix, step-by-step local setup (Windows PowerShell & Linux), Docker Compose, and build commands. |
+| **[FEATURE_DEVELOPMENT.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/FEATURE_DEVELOPMENT.md)** | **Feature Deep Dive:** Catalogue Studio, bulk Excel/CSV ingestion pipeline (scaled for 10k items), promotional schemes, and order reservations (`BE-REQ-XXXXX`). |
+| **[AUTHENTICATION_AND_SECURITY.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/AUTHENTICATION_AND_SECURITY.md)** | **Security & Access Control:** Bcrypt (cost 12), stateless JWT tokens, defense-in-depth route guards, mobile OTP password reset, and honeypot spam protection. |
+| **[MCP_AND_INTEGRATIONS.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/MCP_AND_INTEGRATIONS.md)** | **Integrations & MCP Connection:** Model Context Protocol (MCP) tooling, WhatsApp click-to-chat API, Google Maps routing, and Cloudflare R2 / S3 storage. |
+| **[TESTING_AND_QA.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/TESTING_AND_QA.md)** | **Quality Assurance & Testing:** Pytest test suite, Vitest frontend verification, test cases matrix, and pre-launch showroom checklist. |
+| **[DEBUGGING_AND_TROUBLESHOOTING.md](file:///c:/Users/Lenovo/Desktop/BAJAJ%20ENTERPRISES%20WEBSITE%202/docs/DEBUGGING_AND_TROUBLESHOOTING.md)** | **Debugging Recipes:** Port conflict resolution, PowerShell execution policies, SPA 404 rewrite handling, and the login bounce bug diagnostic resolution. |
 
-```bash
-# In the project root directory
+---
+
+## ⚡ Quick Start & Local Development
+
+### 1. Prerequisites
+- Node.js `18+` & `npm`
+- Python `3.11+`
+- Git
+
+### 2. Backend Setup
+```powershell
+# In project root:
 python -m venv .venv
-
-# Activate Virtual Environment (Windows PowerShell):
 .\.venv\Scripts\Activate.ps1
 
-# (Linux / macOS):
-# source .venv/bin/activate
-```
-
-### Step 2: Install Backend Dependencies & Run Migrations
-
-```bash
 cd backend
 pip install -r requirements.txt
-
-# Run Alembic Database Migrations
 alembic upgrade head
-```
 
-### Step 3: Seed First Admin & Demo Products
-
-```bash
-# Create the first store administrator:
+# Seed initial admin and demo bicycles:
 python -m app.cli.create_admin --email admin@bajajenterprises.com --password Admin@Bajaj2026 --name "Store Administrator"
-
-# Seed the two sample demo bicycles (AVON & HERCULES):
 python -m app.cli.seed_demo_data
+
+# Start backend server (Port 8000):
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### Step 4: Start Backend Server
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-- API Base URL: `http://127.0.0.1:8000/api/v1`
-- Interactive OpenAPI Docs: `http://127.0.0.1:8000/api/v1/docs`
-
-### Step 5: Install Frontend & Start Dev Server
-
-In a new terminal window:
-
-```bash
+### 3. Frontend Setup
+```powershell
+# In a new terminal:
 cd frontend
 npm install
+
+# Start Vite development server (Port 5173):
 npm run dev
 ```
-- Storefront URL: `http://localhost:5173`
-- Admin Control Panel: `http://localhost:5173/admin`
-  - Default Admin Email: `admin@bajajenterprises.com`
-  - Default Admin Password: `Admin@Bajaj2026`
+
+- **Local Storefront:** [http://localhost:5173/](http://localhost:5173/)
+- **Local Admin Portal:** [http://localhost:5173/admin/login](http://localhost:5173/admin/login)
+- **Interactive Swagger Docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ---
 
-## 3. Demo Products Management
+## 🔐 Administrator Access & Credentials
 
-The platform comes with exactly two sample demonstration products seeded in accordance with business guidelines:
-1. **AVON Sample City Bicycle** (`DEMO-AVON-001`, Red, 26 inches, ₹4,999 illustrative placeholder)
-2. **HERCULES Sample Geared Bicycle** (`DEMO-HERCULES-001`, Black, 21 gears, ₹8,999 illustrative placeholder)
-
-Both records are tagged with `is_demo=True` and display clear "Demo Listing — Illustrative Only" notices.
-
-To remove all demo listings prior to official launch:
-```bash
-cd backend
-python -m app.cli.seed_demo_data --clear-demo
-```
+- **Admin Login URL:** `https://bajajenterprises.vercel.app/admin/login`
+- **Default Seeded Account:**
+  - **Email:** `admin@bajajenterprises.com`
+  - **Password:** `Admin@Bajaj2026`
+- **Password Hint:** Click **"Show Password Hint"** on the login page anytime during manual showroom setup.
+- **Mobile OTP Recovery:** Click **"Forgot Password / OTP Reset?"**, confirm phone `+91 94141 38662`, and submit the 6-digit verification OTP to update credentials.
 
 ---
 
-## 4. Key Functional Modules
+## 📦 Containerized Deployment (Docker)
 
-### A. Dynamic Product Fields / Custom Columns Engine
-Bicycles differ across brands and categories. Under `/admin/attributes`, the administrator can:
-- Create custom fields (`Wheel Size`, `Gear Count`, `Brake Type`, `Frame Material`, `Suspension`, `Rider Height`, etc.).
-- Choose types: text, integer, decimal, dropdown, multi-select, boolean, date, long text.
-- Configure dropdown options, units (inches, gears, kg), and required/optional status.
-- Toggle where fields appear: Product Cards, Catalogue Filters, Specifications Tables, or Comparison Matrix.
-- Apply fields to specific categories or all bicycles.
-- Disable a field without losing historical product records.
+To run the entire full-stack platform using Docker Compose:
 
-### B. Bulk Catalogue Import Pipeline
-Under `/admin/import`, administrators can upload CSV or Excel (`.xlsx`) files:
-1. **Upload:** Parse rows and inspect file structure.
-2. **Validation:** Checks for missing names, duplicate SKUs, invalid prices, and unrecognised columns.
-3. **Preview:** Displays first 10 rows and row-level error reports.
-4. **Commit:** Transactional database commit with automatic rollback on fatal errors.
-
-### C. Order Request & Enquiry Workflow
-- **Customer Shopping Cart:** Recalculates real prices and stock availability on backend (never trusts client prices).
-- **Order Request:** Generates a unique tracking reference (`BE-REQ-YYYY-XXXXX`). Collects pickup vs delivery preference. Avoids collecting CVVs or making false claims of confirmed payment.
-- **Enquiries:** Honeypot-protected inquiry form generates reference numbers (`BE-ENQ-YYYY-XXXXX`) and notifies store management.
-- **Admin Management:** Status tracking, private internal notes, and one-click CSV export.
-
----
-
-## 5. Automated Testing
-
-### Backend Test Suite (Pytest)
-```bash
-cd backend
-pytest
-```
-- Includes 17 automated tests covering: Health checks, Authentication & JWT verification, Store settings persistence, Brand & Category CRUD, Product listing & dynamic attribute filtering, Image uploads, Bulk CSV validation and commit, Cart server-side calculation, and Enquiry & Order request workflows.
-
-### Frontend Production Build Test
-```bash
-cd frontend
-npm run build
-```
-- Validates full TypeScript compilation, Vite bundling, and CSS asset generation.
-
----
-
-## 6. Docker Deployment
-
-A multi-container setup with MySQL 8.0, FastAPI backend, and Nginx frontend is provided:
-
-```bash
+```powershell
 docker-compose up --build -d
 ```
+- Frontend served at: `http://localhost`
+- Backend API served at: `http://localhost:8000`
+- MySQL 8.0 running on port `3306` with persistent volume.
 
 ---
 
-## 7. Database Backup & Restore Procedures
+## 📄 License & Attribution
 
-### MySQL 8.0 Backup
-```bash
-mysqldump -u bajaj_user -p bajaj_enterprises > backup_bajaj_$(date +%Y%m%d).sql
-```
-
-### MySQL 8.0 Restore
-```bash
-mysql -u bajaj_user -p bajaj_enterprises < backup_bajaj_YYYYMMDD.sql
-```
-
-### SQLite Backup / Restore
-Simply copy `backend/bajaj_enterprises.db` to a secure backup storage location.
-
----
-
-## 8. Business Owner Requirements Checklist (Pending Items)
-
-Before switching from development to public production:
-1. **Store Contact Details:** Update verified showroom phone number, WhatsApp number, and business email via `/admin/settings`.
-2. **Opening Hours:** Enter exact showroom operating hours.
-3. **Google Maps URL:** Paste verified Google Business location link.
-4. **Social Links:** Enter official Instagram and Facebook URLs (unset links are automatically hidden).
-5. **Real Inventory:** Upload actual AVON and HERCULES bicycles using `/admin/import` or the product manager.
-6. **Remove Demo Records:** Execute `python -m app.cli.seed_demo_data --clear-demo`.
-7. **Policy Approvals:** Review and approve the draft terms under `/policies`.
-8. **SMTP Credentials:** Supply SMTP host, port, user, and password in `.env` if automatic email alerts are desired.
-
-
-
-
-
-New Features
-Both services remain active in the background:
-
-Customer Website: http://127.0.0.1:5173/
-Admin Dashboard: http://127.0.0.1:5173/admin
-Catalogue Studio (With Photos): http://127.0.0.1:5173/admin/catalogue-studio
-Website Content Editor: http://127.0.0.1:5173/admin/content
-Backend API & Swagger Docs: http://127.0.0.1:8000/docs
-Admin Login Credentials: admin@bajajenterprises.com / Admin@Bajaj2026
+&copy; 2026 **Bajaj Enterprises**. All rights reserved.  
+Alakh Sagar Road, Kote Gate, Bikaner, Rajasthan 334001, India.  
+*Independent bicycle retail dealership and wholesale distributor. AVON and HERCULES are trademarks of their respective owners.*
