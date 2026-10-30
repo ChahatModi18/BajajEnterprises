@@ -68,7 +68,7 @@ jobs:
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: |
-          npm ci || npm install
+          npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       - name: Build frontend production bundle (TypeScript & Vite)
         working-directory: ./frontend

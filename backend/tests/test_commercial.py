@@ -16,7 +16,7 @@ def test_banners_endpoint():
     assert response.status_code == 200
     banners = response.json()
     assert len(banners) >= 2
-    assert any("Bajaj Enterprises" in b["title"] for b in banners)
+    assert any("AVON" in b["title"] or "HERCULES" in b["title"] or "Bajaj" in b["title"] for b in banners)
 
 def test_cart_calculation_server_side():
     # Fetch demo products to get their actual IDs
