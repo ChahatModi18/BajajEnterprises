@@ -10,6 +10,7 @@ from app.models.entities import (
     ProductAttribute, ProductAttributeValue
 )
 from app.services.catalogue_service import slugify
+from app.core.config import settings
 
 def parse_uploaded_file(file_bytes: bytes, filename: str) -> List[Dict[str, Any]]:
     ext = os.path.splitext(filename)[1].lower()
@@ -18,27 +19,37 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> List[Dict[str, Any]
     if ext == ".csv":
         text_stream = io.StringIO(file_bytes.decode('utf-8-sig', errors='replace'))
         reader = csv.DictReader(text_stream)
-        for r in reader:
+        for row_number, r in enumerate(reader, start=1):
+            if row_number > settings.MAX_IMPORT_ROWS:
+                raise HTTPException(status_code=413, detail=f"Import exceeds the {settings.MAX_IMPORT_ROWS}-row limit")
             # strip whitespaces in keys and values
             cleaned_row = {str(k).strip(): (str(v).strip() if v is not None else "") for k, v in r.items() if k}
             rows.append(cleaned_row)
-    elif ext in {".xlsx", ".xls"}:
-        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    elif ext == ".xlsx":
+        try:
+            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True, read_only=True)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Uploaded Excel file is invalid or unreadable") from exc
         sheet = wb.active
         headers = []
         for col_idx, cell in enumerate(sheet[1]):
             val = str(cell.value).strip() if cell.value is not None else f"col_{col_idx}"
             headers.append(val)
         
-        for row_cells in sheet.iter_rows(min_row=2, values_only=True):
-            if not any(row_cells):
-                continue
-            row_dict = {}
-            for col_idx, cell_value in enumerate(row_cells):
-                if col_idx < len(headers):
-                    val = str(cell_value).strip() if cell_value is not None else ""
-                    row_dict[headers[col_idx]] = val
-            rows.append(row_dict)
+        try:
+            for row_cells in sheet.iter_rows(min_row=2, values_only=True):
+                if not any(row_cells):
+                    continue
+                if len(rows) >= settings.MAX_IMPORT_ROWS:
+                    raise HTTPException(status_code=413, detail=f"Import exceeds the {settings.MAX_IMPORT_ROWS}-row limit")
+                row_dict = {}
+                for col_idx, cell_value in enumerate(row_cells):
+                    if col_idx < len(headers):
+                        val = str(cell_value).strip() if cell_value is not None else ""
+                        row_dict[headers[col_idx]] = val
+                rows.append(row_dict)
+        finally:
+            wb.close()
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -46,26 +57,69 @@ def parse_uploaded_file(file_bytes: bytes, filename: str) -> List[Dict[str, Any]
         )
     return rows
 
-def create_import_record(db: Session, file: UploadFile) -> CatalogueImport:
+def create_import_record(
+    db: Session,
+    file: UploadFile,
+    title: Optional[str] = None,
+    category_tag: Optional[str] = None
+) -> CatalogueImport:
+    import datetime
     filename = file.filename or "catalogue.csv"
     ext = os.path.splitext(filename)[1].lower()
-    file_bytes = file.file.read()
-    
+    max_bytes = 25 * 1024 * 1024
+    file_bytes = file.file.read(max_bytes + 1)
+    if len(file_bytes) > max_bytes:
+        raise HTTPException(status_code=413, detail="File exceeds maximum allowed size of 25MB")
+
+    # Save original file into uploads/catalogues/ so it can be viewed / downloaded anytime
+    catalogues_dir = os.path.join(settings.UPLOAD_DIR, "catalogues")
+    os.makedirs(catalogues_dir, exist_ok=True)
+    safe_name = f"{int(datetime.datetime.utcnow().timestamp())}_{slugify(os.path.splitext(filename)[0])}{ext}"
+    saved_path = os.path.join(catalogues_dir, safe_name)
+    with open(saved_path, "wb") as f_out:
+        f_out.write(file_bytes)
+    file_url = f"/uploads/catalogues/{safe_name}"
+
+    clean_title = (title or os.path.splitext(filename)[0].replace("_", " ").title()).strip()
+    clean_tag = (category_tag or ("PDF Catalogue" if ext == ".pdf" else "Wholesale Import")).strip()
+
+    if ext == ".pdf":
+        import_rec = CatalogueImport(
+            title=clean_title,
+            category_tag=clean_tag,
+            filename=filename,
+            file_type="pdf",
+            file_url=file_url,
+            file_size_bytes=len(file_bytes),
+            total_rows=0,
+            valid_rows=0,
+            error_rows=0,
+            status="COMMITTED",
+            preview_data_json=[{"info": "Direct PDF Catalogue attached and ready for showroom download"}],
+            errors_json=[]
+        )
+        db.add(import_rec)
+        db.commit()
+        db.refresh(import_rec)
+        return import_rec
+
     rows = parse_uploaded_file(file_bytes, filename)
     if not rows:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file contains no rows.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded spreadsheet contains no data rows.")
 
     total_rows = len(rows)
-    preview = rows[:10] # first 10 rows for preview
-
     import_rec = CatalogueImport(
+        title=clean_title,
+        category_tag=clean_tag,
         filename=filename,
         file_type=ext.replace(".", ""),
+        file_url=file_url,
+        file_size_bytes=len(file_bytes),
         total_rows=total_rows,
         valid_rows=0,
         error_rows=0,
         status="UPLOADED",
-        preview_data_json=rows, # save full parsed data for validation/commit
+        preview_data_json=rows,
         errors_json=[]
     )
     db.add(import_rec)
@@ -153,6 +207,10 @@ def commit_import_data(db: Session, import_id: int, column_mapping: Optional[Dic
     import_rec = db.query(CatalogueImport).filter(CatalogueImport.id == import_id).first()
     if not import_rec:
         raise HTTPException(status_code=404, detail="Catalogue import not found")
+    if import_rec.status == "COMMITTED":
+        raise HTTPException(status_code=409, detail="This import has already been committed")
+    if import_rec.status not in {"VALIDATED", "VALIDATED_WITH_ERRORS"}:
+        raise HTTPException(status_code=409, detail="Validate this import before committing it")
 
     rows = import_rec.preview_data_json or []
     mapping = column_mapping or {}

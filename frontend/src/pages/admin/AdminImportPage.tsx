@@ -120,7 +120,7 @@ export const AdminImportPage: React.FC = () => {
               </span>
               <input
                 type="file"
-                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 className="hidden"
               />

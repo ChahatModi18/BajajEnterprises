@@ -1,7 +1,6 @@
-import os
-from typing import List, Union
+from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import model_validator
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
@@ -10,9 +9,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Security
-    SECRET_KEY: str = "bajaj-enterprises-secure-dev-key-change-in-production-2026"
+    SECRET_KEY: str = "development-only-signing-key-change-before-deployment"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 365 # 365 days (1 year persistent session - never times out)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
     # Database
     DATABASE_URL: str = "sqlite:///./bajaj_enterprises.db"
@@ -20,6 +19,12 @@ class Settings(BaseSettings):
     # Uploads
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
+    MAX_REQUEST_SIZE_MB: int = 12
+    MAX_IMPORT_ROWS: int = 10000
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_TIMEOUT_SECONDS: int = 30
+    DB_POOL_RECYCLE_SECONDS: int = 1800
     
     # CORS
     CORS_ORIGINS: List[str] = [
@@ -28,8 +33,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "https://www.bajajenterprises.com",
         "https://bajajenterprises.com",
-        "https://*.vercel.app",
-        "*"
+        "https://bajajenterprises.vercel.app",
+        "https://bajaj-frontend.onrender.com"
     ]
     
     # Store settings defaults
@@ -46,6 +51,27 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = "noreply@bajajenterprises.local"
     SMTP_ENABLED: bool = False
+
+    @model_validator(mode="after")
+    def validate_production_security(self):
+        if self.ENVIRONMENT.lower() == "production":
+            if (self.SECRET_KEY in {
+                    "development-only-signing-key-change-before-deployment",
+                    "generate-a-strong-random-secret-key-for-production-min-32-chars",
+                } or len(self.SECRET_KEY) < 32 or len(set(self.SECRET_KEY)) < 10):
+                raise ValueError("Production requires a unique SECRET_KEY of at least 32 characters")
+            if "*" in self.CORS_ORIGINS:
+                raise ValueError("Production CORS_ORIGINS must list explicit origins")
+            if self.DATABASE_URL.lower().startswith("sqlite:"):
+                raise ValueError("Production requires a shared persistent database; SQLite is development-only")
+        if self.ACCESS_TOKEN_EXPIRE_MINUTES < 1:
+            raise ValueError("ACCESS_TOKEN_EXPIRE_MINUTES must be at least 1")
+        if min(self.MAX_UPLOAD_SIZE_MB, self.MAX_REQUEST_SIZE_MB, self.MAX_IMPORT_ROWS,
+               self.DB_POOL_SIZE, self.DB_POOL_TIMEOUT_SECONDS, self.DB_POOL_RECYCLE_SECONDS) < 1:
+            raise ValueError("Upload, import, and database pool limits must be positive")
+        if self.DB_MAX_OVERFLOW < 0 or self.MAX_REQUEST_SIZE_MB < self.MAX_UPLOAD_SIZE_MB:
+            raise ValueError("Database overflow must be non-negative and request limit must cover uploads")
+        return self
     
     model_config = SettingsConfigDict(
         env_file=".env",

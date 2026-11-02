@@ -31,16 +31,22 @@ DATABASE_URL=sqlite:///./bajaj_enterprises.db
 # DATABASE_URL=mysql+pymysql://bajaj_admin:password@localhost:3306/bajaj_enterprises
 
 # Cryptographic Keys (Change in production!)
-SECRET_KEY=bajaj_enterprises_production_secret_key_bikaner_2026_super_secure
+SECRET_KEY=generate-a-unique-random-secret-of-at-least-32-characters
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=43200  # 30 Days persistent session
+ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# CORS Whitelist (Comma-separated origins)
-CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://bajajenterprises.vercel.app
+# CORS Whitelist (JSON array of exact origins; do not use '*')
+CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173","https://bajajenterprises.vercel.app"]
 
 # Storage Paths
 UPLOAD_DIR=uploads
-MAX_UPLOAD_SIZE_MB=15
+MAX_UPLOAD_SIZE_MB=10
+MAX_REQUEST_SIZE_MB=12
+MAX_IMPORT_ROWS=10000
+DB_POOL_SIZE=5
+DB_MAX_OVERFLOW=10
+DB_POOL_TIMEOUT_SECONDS=30
+DB_POOL_RECYCLE_SECONDS=1800
 
 # SMTP Email Configuration (Optional fallback to console logging)
 SMTP_HOST=smtp.gmail.com
@@ -112,7 +118,7 @@ cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 *API Base:* `http://127.0.0.1:8000/api/v1`  
-*Swagger UI:* `http://127.0.0.1:8000/docs`
+*Swagger UI:* `http://127.0.0.1:8000/api/v1/docs`
 
 #### Terminal 2 — Start Vite React Frontend:
 ```powershell
@@ -139,7 +145,13 @@ The compiled, minified production assets will be output to `frontend/dist/`.
 
 ### 6. Containerized Deployment with Docker Compose
 
-To run the complete full-stack environment in Docker:
+Before starting Docker Compose, create a root `.env` file with a private key:
+
+```ini
+SECRET_KEY=replace-with-a-unique-random-secret-at-least-32-characters-long
+```
+
+Production mode refuses to start with the development signing key, wildcard CORS, or SQLite. Set `DATABASE_URL` to a shared persistent MySQL database in cloud deployments. The Compose Nginx proxy also caps request sizes and rate-limits authentication and public form routes; deployments that expose FastAPI directly should configure equivalent edge rate limits. To run the complete full-stack environment in Docker:
 
 ```powershell
 # Build and run containers in background:
@@ -154,4 +166,4 @@ docker-compose down
 This provisions:
 1. `backend`: FastAPI Python 3.11 service.
 2. `frontend`: Nginx container serving optimized Vite static bundle.
-3. `db`: MySQL 8.0 server with persistent volume storage.
+3. `mysql`: MySQL 8.0 server on the private Compose network with persistent volume storage.

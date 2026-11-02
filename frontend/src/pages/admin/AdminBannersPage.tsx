@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Image as ImageIcon, Plus, Edit2, Trash2, Check, X, Upload } from 'lucide-react';
+import { Image as ImageIcon, Plus, Edit2, Trash2, Check, X, Upload, Camera, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
+import { CameraCaptureModal } from '../../admin/components/CameraCaptureModal';
 import { Banner } from '../../types';
 import { apiRequest } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +24,7 @@ export const AdminBannersPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [cameraModalOpen, setCameraModalOpen] = useState(false);
 
   const fetchBanners = async () => {
     setLoading(true);
@@ -210,7 +212,7 @@ export const AdminBannersPage: React.FC = () => {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto">
             <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-700">
               <X className="w-5 h-5" />
             </button>
@@ -255,7 +257,7 @@ export const AdminBannersPage: React.FC = () => {
                     <span>Upload</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                       onChange={(e) => {
                         if (e.target.files?.[0]) handleImageUpload(e.target.files[0]);
                       }}
@@ -310,6 +312,17 @@ export const AdminBannersPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Live Camera Capture Modal */}
+      <CameraCaptureModal
+        isOpen={cameraModalOpen}
+        onClose={() => setCameraModalOpen(false)}
+        title="Snap Bicycle Photograph for Banner"
+        subtitle="Capture landscape photograph of showroom bicycle to use in hero banner slide."
+        onCapture={async (file: File) => {
+          await handleImageUpload(file);
+          setCameraModalOpen(false);
+        }}
+      />
     </div>
   );
 };

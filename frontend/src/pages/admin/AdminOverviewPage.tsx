@@ -30,8 +30,8 @@ export const AdminOverviewPage: React.FC = () => {
       try {
         const [prodsData, enqsData, ordersData, schemesData] = await Promise.all([
           apiRequest<{ items: Product[]; total: number }>('/admin/products?page_size=100'),
-          apiRequest<Enquiry[]>('/admin/enquiries'),
-          apiRequest<OrderRequest[]>('/admin/order-requests'),
+          apiRequest<Enquiry[] | { items: Enquiry[]; counts: Record<string, number> }>('/admin/enquiries?page_size=5'),
+          apiRequest<OrderRequest[] | { items: OrderRequest[]; counts: Record<string, number> }>('/admin/order-requests?page_size=5'),
           apiRequest<Scheme[]>('/admin/schemes'),
         ]);
 
@@ -39,8 +39,14 @@ export const AdminOverviewPage: React.FC = () => {
         const active = allProds.filter(p => p.is_published && !p.is_archived).length;
         const lowStock = allProds.filter(p => p.stock_quantity <= 2 && p.stock_quantity > 0).length;
         const unpublished = allProds.filter(p => !p.is_published).length;
-        const newEnq = enqsData.filter(e => e.status === 'NEW').length;
-        const pendingOrd = ordersData.filter(o => o.status === 'RECEIVED' || o.status === 'UNDER_REVIEW').length;
+        const enquiryItems = Array.isArray(enqsData) ? enqsData : enqsData.items;
+        const orderItems = Array.isArray(ordersData) ? ordersData : ordersData.items;
+        const newEnq = Array.isArray(enqsData)
+          ? enqsData.filter(e => e.status === 'NEW').length
+          : enqsData.counts.NEW || 0;
+        const pendingOrd = Array.isArray(ordersData)
+          ? ordersData.filter(o => o.status === 'RECEIVED' || o.status === 'UNDER_REVIEW').length
+          : (ordersData.counts.RECEIVED || 0) + (ordersData.counts.UNDER_REVIEW || 0);
         const actSchemes = schemesData.filter(s => s.is_active).length;
 
         setStats({
@@ -52,8 +58,8 @@ export const AdminOverviewPage: React.FC = () => {
           activeSchemes: actSchemes,
         });
 
-        setRecentEnquiries(enqsData.slice(0, 5));
-        setRecentOrders(ordersData.slice(0, 5));
+        setRecentEnquiries(enquiryItems.slice(0, 5));
+        setRecentOrders(orderItems.slice(0, 5));
       } catch (err) {
         console.error('Failed to load dashboard stats', err);
       } finally {
@@ -126,7 +132,7 @@ export const AdminOverviewPage: React.FC = () => {
       )}
 
       {/* Metric Cards Grid with Bilingual Labels */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Active Products */}
         <Link to="/admin/catalogue-studio" className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2 hover:border-emerald-500 transition group">
           <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">

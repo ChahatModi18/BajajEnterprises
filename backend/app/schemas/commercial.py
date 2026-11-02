@@ -1,6 +1,6 @@
 import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 # --- BANNERS ---
 class BannerBase(BaseModel):
@@ -70,18 +70,18 @@ class SchemeResponse(SchemeBase):
 
 # --- ENQUIRIES ---
 class EnquiryCreate(BaseModel):
-    name: str
-    phone: str
+    name: str = Field(min_length=1, max_length=100)
+    phone: str = Field(min_length=7, max_length=32)
     email: Optional[EmailStr] = None
-    category: str = "General"
-    product_id: Optional[int] = None
-    message: str
-    preferred_contact: str = "Phone" # Phone, WhatsApp, Email
-    honeypot: Optional[str] = None # Spam prevention
+    category: str = Field(default="General", max_length=80)
+    product_id: Optional[int] = Field(default=None, gt=0)
+    message: str = Field(min_length=1, max_length=5000)
+    preferred_contact: str = Field(default="Phone", max_length=20) # Phone, WhatsApp, Email
+    honeypot: Optional[str] = Field(default=None, max_length=255) # Spam prevention
 
 class EnquiryStatusUpdate(BaseModel):
-    status: str # NEW, CONTACTED, AWAITING_CUSTOMER, RESOLVED, CLOSED
-    internal_notes: Optional[str] = None
+    status: str = Field(min_length=1, max_length=50) # NEW, CONTACTED, AWAITING_CUSTOMER, RESOLVED, CLOSED
+    internal_notes: Optional[str] = Field(default=None, max_length=5000)
     follow_up_date: Optional[datetime.datetime] = None
 
 class EnquiryResponse(BaseModel):
@@ -101,10 +101,17 @@ class EnquiryResponse(BaseModel):
     product_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
+class EnquiryPageResponse(BaseModel):
+    items: List[EnquiryResponse]
+    total: int
+    counts: Dict[str, int]
+    page: int
+    page_size: int
+
 # --- CART & ORDER REQUEST ---
 class CartItemInput(BaseModel):
-    product_id: int
-    quantity: int = 1
+    product_id: int = Field(gt=0)
+    quantity: int = Field(default=1, ge=1, le=100)
 
 class CartCalculationItem(BaseModel):
     product_id: int
@@ -137,22 +144,22 @@ class OrderRequestItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class OrderRequestCreate(BaseModel):
-    customer_name: str
-    customer_phone: str
+    customer_name: str = Field(min_length=1, max_length=150)
+    customer_phone: str = Field(min_length=7, max_length=50)
     customer_email: Optional[EmailStr] = None
     delivery_preference: str = "PICKUP" # PICKUP, DELIVERY
-    address_line1: Optional[str] = None
-    address_line2: Optional[str] = None
-    city: Optional[str] = "Bikaner"
-    state: Optional[str] = "Rajasthan"
-    postal_code: Optional[str] = "334001"
-    notes: Optional[str] = None
-    items: List[CartItemInput]
+    address_line1: Optional[str] = Field(default=None, max_length=255)
+    address_line2: Optional[str] = Field(default=None, max_length=255)
+    city: Optional[str] = Field(default="Bikaner", max_length=100)
+    state: Optional[str] = Field(default="Rajasthan", max_length=100)
+    postal_code: Optional[str] = Field(default="334001", max_length=20)
+    notes: Optional[str] = Field(default=None, max_length=5000)
+    items: List[CartItemInput] = Field(min_length=1, max_length=50)
     honeypot: Optional[str] = None
 
 class OrderRequestStatusUpdate(BaseModel):
-    status: str # RECEIVED, UNDER_REVIEW, CONFIRMED, FULFILLED, CANCELLED
-    internal_notes: Optional[str] = None
+    status: str = Field(min_length=1, max_length=50) # RECEIVED, UNDER_REVIEW, CONFIRMED, FULFILLED, CANCELLED
+    internal_notes: Optional[str] = Field(default=None, max_length=5000)
 
 class OrderRequestResponse(BaseModel):
     id: int
@@ -173,3 +180,40 @@ class OrderRequestResponse(BaseModel):
     created_at: datetime.datetime
     items: List[OrderRequestItemResponse]
     model_config = ConfigDict(from_attributes=True)
+
+class OrderRequestPageResponse(BaseModel):
+    items: List[OrderRequestResponse]
+    total: int
+    counts: Dict[str, int]
+    page: int
+    page_size: int
+
+
+# --- FEEDBACK & RATINGS ---
+class FeedbackCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    email: Optional[str] = Field(default=None, max_length=120)
+    rating: int = Field(ge=1, le=5)
+    comment: str = Field(min_length=3, max_length=5000)
+    bicycle_model: Optional[str] = Field(default=None, max_length=150)
+    service_type: Optional[str] = Field(default="Showroom Purchase", max_length=50)
+    honeypot: Optional[str] = None
+
+class FeedbackResponse(BaseModel):
+    id: int
+    name: str
+    rating: int
+    comment: str
+    bicycle_model: Optional[str] = None
+    service_type: Optional[str] = None
+    is_approved: bool
+    is_featured: bool
+    created_at: datetime.datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class FeedbackSummaryResponse(BaseModel):
+    items: List[FeedbackResponse]
+    total: int
+    average_rating: float
+    rating_breakdown: Dict[str, int]

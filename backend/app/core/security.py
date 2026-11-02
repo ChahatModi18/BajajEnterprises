@@ -14,6 +14,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 def get_password_hash(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must be at most 72 UTF-8 bytes")
     salt = bcrypt.gensalt(rounds=12)
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed.decode('utf-8')

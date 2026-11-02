@@ -687,10 +687,10 @@ export const AdminProductsPage: React.FC = () => {
               <label className="block p-6 border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl text-center cursor-pointer bg-slate-50 transition">
                 <Upload className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
                 <span className="text-xs font-bold text-slate-800 block">Click to Upload Bicycle Photograph</span>
-                <span className="text-[10px] text-slate-400 block mt-1">Supports JPG, PNG, WEBP, SVG</span>
+                <span className="text-[10px] text-slate-400 block mt-1">Supports JPG, PNG, and WEBP images up to 10 MB</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                   onChange={(e) => {
                     if (e.target.files?.[0]) handleImageUpload(e.target.files[0]);
                   }}

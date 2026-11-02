@@ -7,7 +7,9 @@ import {
   fallbackOrders,
   fallbackProducts, 
   fallbackSchemes, 
-  fallbackSettings 
+  fallbackSettings, 
+  fallbackFeedbacks, 
+  fallbackCatalogueBatches 
 } from '../data/fallbackData';
 
 const API_BASE = import.meta.env.VITE_API_URL 
@@ -108,11 +110,11 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
       // ignore
     }
     const savedOtp = sessionStorage.getItem('bajaj_temp_otp');
-    if (!savedOtp || (savedOtp !== otp && otp !== '123456')) {
+    if (!savedOtp || savedOtp !== otp) {
       throw new Error('Invalid verification OTP code.');
     }
-    if (!newPassword || newPassword.length < 6) {
-      throw new Error('Password must be at least 6 characters.');
+    if (!newPassword || newPassword.length < 12 || newPassword.length > 72) {
+      throw new Error('Password must be 12 to 72 characters long.');
     }
     localStorage.setItem('bajaj_custom_admin_password', newPassword);
     sessionStorage.removeItem('bajaj_temp_otp');
@@ -208,6 +210,115 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     return fallbackEnquiries as unknown as T;
   }
 
+
+  // Handle Customer Feedback & Showroom Ratings
+  if (cleanEndpoint === '/feedback' || cleanEndpoint === '/feedbacks') {
+    const rawSaved = localStorage.getItem('bajaj_feedbacks');
+    let feedbacks = rawSaved ? JSON.parse(rawSaved) : [...fallbackFeedbacks];
+
+    if (method === 'POST') {
+      let bodyData: any = {};
+      try {
+        if (typeof options.body === 'string') bodyData = JSON.parse(options.body);
+      } catch {}
+      const newFeedback = {
+        id: Date.now(),
+        name: bodyData.name || 'Showroom Visitor',
+        phone: bodyData.phone,
+        email: bodyData.email,
+        rating: Number(bodyData.rating) || 5,
+        comment: bodyData.comment || 'Great collection and service.',
+        bicycle_model: bodyData.bicycle_model,
+        service_type: bodyData.service_type || 'Showroom Purchase',
+        is_approved: true,
+        is_featured: false,
+        created_at: new Date().toISOString()
+      };
+      feedbacks.unshift(newFeedback);
+      localStorage.setItem('bajaj_feedbacks', JSON.stringify(feedbacks));
+      return newFeedback as unknown as T;
+    }
+
+    const total = feedbacks.length;
+    const avg = total > 0 ? (feedbacks.reduce((acc: number, f: any) => acc + f.rating, 0) / total).toFixed(1) : '5.0';
+    const breakdown = { '5': 0, '4': 0, '3': 0, '2': 0, '1': 0 };
+    feedbacks.forEach((f: any) => {
+      const key = String(f.rating);
+      if (key in breakdown) (breakdown as any)[key]++;
+    });
+
+    return {
+      items: feedbacks,
+      total,
+      average_rating: parseFloat(avg),
+      rating_breakdown: breakdown
+    } as unknown as T;
+  }
+
+  // Handle Admin Feedback Operations
+  if (cleanEndpoint.startsWith('/feedback/') && method === 'PATCH') {
+    const rawSaved = localStorage.getItem('bajaj_feedbacks');
+    let feedbacks = rawSaved ? JSON.parse(rawSaved) : [...fallbackFeedbacks];
+    const parts = cleanEndpoint.split('/');
+    const fbId = Number(parts[2]);
+    const action = parts[3];
+    const found = feedbacks.find((f: any) => f.id === fbId);
+    if (found) {
+      if (action === 'toggle-feature') found.is_featured = !found.is_featured;
+      if (action === 'toggle-approval') found.is_approved = !found.is_approved;
+      localStorage.setItem('bajaj_feedbacks', JSON.stringify(feedbacks));
+      return found as unknown as T;
+    }
+  }
+
+  if (cleanEndpoint.startsWith('/feedback/') && method === 'DELETE') {
+    const rawSaved = localStorage.getItem('bajaj_feedbacks');
+    let feedbacks = rawSaved ? JSON.parse(rawSaved) : [...fallbackFeedbacks];
+    const fbId = Number(cleanEndpoint.split('/')[2]);
+    feedbacks = feedbacks.filter((f: any) => f.id !== fbId);
+    localStorage.setItem('bajaj_feedbacks', JSON.stringify(feedbacks));
+    return { message: 'Feedback removed' } as unknown as T;
+  }
+
+  // Handle Catalogue Imports & Bulk Batches
+  if (cleanEndpoint === '/catalogue-imports' || cleanEndpoint.startsWith('/catalogue-imports')) {
+    const rawBatches = localStorage.getItem('bajaj_catalogue_batches');
+    let batches = rawBatches ? JSON.parse(rawBatches) : [...fallbackCatalogueBatches];
+
+    if (method === 'DELETE') {
+      const batchId = Number(cleanEndpoint.split('/')[2]);
+      batches = batches.filter((b: any) => b.id !== batchId);
+      localStorage.setItem('bajaj_catalogue_batches', JSON.stringify(batches));
+      return { message: 'Catalogue batch deleted' } as unknown as T;
+    }
+
+    if (cleanEndpoint.includes('/upload') && method === 'POST') {
+      const newBatch = {
+        id: Date.now(),
+        title: 'New Bulk Catalogue Upload',
+        category_tag: 'Wholesale Range',
+        filename: 'uploaded_catalogue.csv',
+        file_type: 'csv',
+        file_url: '/uploads/catalogues/demo_avon_catalogue.csv',
+        file_size_bytes: 42000,
+        total_rows: 15,
+        valid_rows: 15,
+        error_rows: 0,
+        status: 'UPLOADED',
+        created_at: new Date().toISOString()
+      };
+      batches.unshift(newBatch);
+      localStorage.setItem('bajaj_catalogue_batches', JSON.stringify(batches));
+      return {
+        import_id: newBatch.id,
+        ...newBatch,
+        preview_data: []
+      } as unknown as T;
+    }
+
+    return batches as unknown as T;
+  }
+
   // Handle Order Requests
   if (cleanEndpoint === '/orders' || cleanEndpoint === '/order-requests') {
     if (method === 'POST') {
@@ -289,17 +400,25 @@ export async function apiRequest<T = any>(
   }
 
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+  const method = (options.method || 'GET').toUpperCase();
+  const isAdminOrAuth = endpoint.split('?')[0].startsWith('/admin/') || endpoint.includes('/auth/');
+  const canUseProductionFallback = method === 'GET' && !isAdminOrAuth;
+  let receivedHttpResponse = false;
   
   try {
     const response = await fetch(url, {
       ...options,
       headers,
     });
+    receivedHttpResponse = true;
 
     const contentType = response.headers.get('content-type') || '';
 
     // If endpoint was rewritten by SPA to index.html (returns text/html for an API route)
     if (contentType.includes('text/html')) {
+      if (!import.meta.env.DEV && !canUseProductionFallback) {
+        throw new Error('The API endpoint is unavailable. Please try again later.');
+      }
       return resolveFallback<T>(endpoint, options);
     }
 
@@ -328,7 +447,11 @@ export async function apiRequest<T = any>(
 
     return response.text() as any;
   } catch (err: any) {
-    // If backend is offline or network request failed, use resilient fallback demo data
+    // Never fake successful writes, authentication, or admin reads in production.
+    if (!import.meta.env.DEV && (receivedHttpResponse || !canUseProductionFallback)) {
+      throw err;
+    }
+    // Public storefront reads may use bundled catalog data while offline.
     return resolveFallback<T>(endpoint, options);
   }
 }

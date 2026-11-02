@@ -2,7 +2,7 @@
 
 [![Production Deployment](https://img.shields.io/badge/Vercel-Live_Storefront-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://bajajenterprises.vercel.app)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-ChahatModi18%2FBajajEnterprises-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ChahatModi18/BajajEnterprises)
-[![Backend](https://img.shields.io/badge/FastAPI-Python_3.11-009688?style=for-the-badge&logo=fastapi&logoColor=white)](http://127.0.0.1:8000/docs)
+[![Backend](https://img.shields.io/badge/FastAPI-Python_3.11-009688?style=for-the-badge&logo=fastapi&logoColor=white)](http://127.0.0.1:8000/api/v1/docs)
 [![Frontend](https://img.shields.io/badge/React_18-TypeScript_+_Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](http://localhost:5173)
 
 > **Official Showroom Location:** Alakh Sagar Road, Kote Gate, Bikaner, Rajasthan 334001, India  
@@ -69,18 +69,18 @@ npm run dev
 
 - **Local Storefront:** [http://localhost:5173/](http://localhost:5173/)
 - **Local Admin Portal:** [http://localhost:5173/admin/login](http://localhost:5173/admin/login)
-- **Interactive Swagger Docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **Interactive Swagger Docs:** [http://127.0.0.1:8000/api/v1/docs](http://127.0.0.1:8000/api/v1/docs)
 
 ---
 
 ## 🔐 Administrator Access & Credentials
 
 - **Admin Login URL:** `https://bajajenterprises.vercel.app/admin/login`
-- **Default Seeded Account:**
+- **Local development seed only:**
   - **Email:** `admin@bajajenterprises.com`
   - **Password:** `Admin@Bajaj2026`
-- **Password Hint:** Click **"Show Password Hint"** on the login page anytime during manual showroom setup.
-- **Mobile OTP Recovery:** Click **"Forgot Password / OTP Reset?"**, confirm phone `+91 94141 38662`, and submit the 6-digit verification OTP to update credentials.
+- Use a unique administrator password in production. The prefilled credential helper and password hint are available only in development.
+- **Password recovery:** OTP recovery is development-only until production SMS delivery and verified phone ownership are configured.
 
 ---
 
@@ -89,11 +89,12 @@ npm run dev
 To run the entire full-stack platform using Docker Compose:
 
 ```powershell
+# Create a root .env file first and set SECRET_KEY to a unique random value of at least 32 characters.
 docker-compose up --build -d
 ```
 - Frontend served at: `http://localhost`
 - Backend API served at: `http://localhost:8000`
-- MySQL 8.0 running on port `3306` with persistent volume.
+- MySQL 8.0 on the private Compose network with a persistent volume.
 
 ---
 

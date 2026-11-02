@@ -9,6 +9,7 @@ import { apiRequest } from '../utils/api';
 import { HeroCarousel } from '../components/home/HeroCarousel';
 import { ProductCard } from '../components/product/ProductCard';
 import { QuickEnquiryModal } from '../components/modals/QuickEnquiryModal';
+import { FeedbackReviewsSection } from '../components/home/FeedbackReviewsSection';
 import { useSettings } from '../context/SettingsContext';
 
 export const HomePage: React.FC = () => {

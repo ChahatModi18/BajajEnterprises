@@ -9,10 +9,13 @@ import { apiRequest } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
 export const AdminEnquiriesPage: React.FC = () => {
+  const pageSize = 50;
   const { isAuthenticated, user, loading: authLoading } = useAuth();
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
   const [statusUpdate, setStatusUpdate] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
@@ -22,9 +25,16 @@ export const AdminEnquiriesPage: React.FC = () => {
   const fetchEnquiries = async () => {
     setLoading(true);
     try {
-      const url = statusFilter ? `/admin/enquiries?status=${statusFilter}` : '/admin/enquiries';
-      const data = await apiRequest<Enquiry[]>(url);
-      setEnquiries(data);
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+      if (statusFilter) params.set('status', statusFilter);
+      const data = await apiRequest<Enquiry[] | { items: Enquiry[]; total: number; counts: Record<string, number> }>(`/admin/enquiries?${params}`);
+      if (Array.isArray(data)) {
+        setEnquiries(data);
+        setTotal(data.length);
+      } else {
+        setEnquiries(data.items);
+        setTotal(data.total);
+      }
     } catch (err) {
       console.error('Failed to load enquiries', err);
     } finally {
@@ -34,7 +44,7 @@ export const AdminEnquiriesPage: React.FC = () => {
 
   useEffect(() => {
     fetchEnquiries();
-  }, [statusFilter]);
+  }, [statusFilter, page]);
 
   const handleOpenEdit = (enq: Enquiry) => {
     setSelectedEnquiry(enq);
@@ -98,10 +108,10 @@ export const AdminEnquiriesPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
           >
             <option value="">All Statuses</option>
@@ -207,6 +217,14 @@ export const AdminEnquiriesPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-100 text-xs text-slate-500">
+          <span>Showing {total === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}</span>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((current) => current - 1)} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Previous</button>
+            <span>Page {page} of {Math.max(1, Math.ceil(total / pageSize))}</span>
+            <button type="button" disabled={page >= Math.ceil(total / pageSize) || loading} onClick={() => setPage((current) => current + 1)} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Next</button>
+          </div>
         </div>
       </div>
 

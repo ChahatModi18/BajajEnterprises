@@ -60,7 +60,8 @@ def test_enquiry_submission_and_admin_workflow():
     # Admin view
     admin_enqs = client.get("/api/v1/admin/enquiries", headers=headers)
     assert admin_enqs.status_code == 200
-    assert any(e["id"] == enq_id for e in admin_enqs.json())
+    enq_list = admin_enqs.json() if isinstance(admin_enqs.json(), list) else admin_enqs.json().get("items", [])
+    assert any(e["id"] == enq_id for e in enq_list)
 
     # Admin update status
     patch_res = client.patch(
@@ -106,7 +107,8 @@ def test_order_request_submission_and_admin_workflow():
     # Admin view
     admin_orders = client.get("/api/v1/admin/order-requests", headers=headers)
     assert admin_orders.status_code == 200
-    assert any(o["id"] == order_id for o in admin_orders.json())
+    order_list = admin_orders.json() if isinstance(admin_orders.json(), list) else admin_orders.json().get("items", [])
+    assert any(o["id"] == order_id for o in order_list)
 
     # Admin update status
     patch_res = client.patch(
@@ -121,3 +123,40 @@ def test_order_request_submission_and_admin_workflow():
     csv_res = client.get("/api/v1/admin/order-requests/export", headers=headers)
     assert csv_res.status_code == 200
     assert "Sunita Verma" in csv_res.text
+
+
+def test_feedback_flow():
+    # Public submit feedback
+    fb_payload = {
+        "name": "Manish Sharma",
+        "phone": "+91 9414199999",
+        "email": "manish@example.com",
+        "rating": 5,
+        "comment": "Outstanding bicycle showroom experience! Great guidance on frame sizes.",
+        "bicycle_model": "AVON City Star 26T",
+        "service_type": "Showroom Purchase"
+    }
+    res = client.post("/api/v1/feedback", json=fb_payload)
+    assert res.status_code == 201
+    data = res.json()
+    assert data["name"] == "Manish Sharma"
+    assert data["rating"] == 5
+    fb_id = data["id"]
+
+    # Public get feedback summary
+    summary_res = client.get("/api/v1/feedback")
+    assert summary_res.status_code == 200
+    summary = summary_res.json()
+    assert summary["total"] >= 1
+    assert "average_rating" in summary
+    assert "rating_breakdown" in summary
+
+    # Admin view and toggle
+    token = get_admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    admin_res = client.get("/api/v1/admin/feedback", headers=headers)
+    assert admin_res.status_code == 200
+
+    toggle_res = client.patch(f"/api/v1/admin/feedback/{fb_id}/toggle-feature", headers=headers)
+    assert toggle_res.status_code == 200
+    assert toggle_res.json()["is_featured"] is True

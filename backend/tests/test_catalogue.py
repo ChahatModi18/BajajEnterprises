@@ -21,7 +21,7 @@ def test_get_categories():
     assert "Geared Bicycle" in cat_names
 
 def test_get_products_list():
-    response = client.get("/api/v1/products")
+    response = client.get("/api/v1/products?page_size=100")
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 2

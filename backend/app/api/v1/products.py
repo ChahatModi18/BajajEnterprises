@@ -13,20 +13,20 @@ router = APIRouter(tags=["Products"])
 def list_products(
     page: int = Query(1, ge=1),
     page_size: int = Query(12, ge=1, le=100),
-    search: Optional[str] = None,
-    brand_id: Optional[int] = None,
-    brand_slug: Optional[str] = None,
-    category_id: Optional[int] = None,
-    category_slug: Optional[str] = None,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
-    availability: Optional[str] = None,
+    search: Optional[str] = Query(None, max_length=100),
+    brand_id: Optional[int] = Query(None, ge=1),
+    brand_slug: Optional[str] = Query(None, max_length=120),
+    category_id: Optional[int] = Query(None, ge=1),
+    category_slug: Optional[str] = Query(None, max_length=120),
+    min_price: Optional[float] = Query(None, ge=0),
+    max_price: Optional[float] = Query(None, ge=0),
+    availability: Optional[str] = Query(None, max_length=50),
     is_featured: Optional[bool] = None,
     is_new_arrival: Optional[bool] = None,
     is_bestseller: Optional[bool] = None,
     sort_by: str = Query("newest", pattern="^(newest|price_asc|price_desc|name_asc)$"),
-    wheel_size: Optional[str] = None,
-    gear_count: Optional[str] = None,
+    wheel_size: Optional[str] = Query(None, max_length=50),
+    gear_count: Optional[str] = Query(None, max_length=50),
     db: Session = Depends(get_db)
 ):
     attr_filters = {}
@@ -75,9 +75,9 @@ def get_product_by_slug(slug: str, db: Session = Depends(get_db)):
 def admin_list_products(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    search: Optional[str] = None,
-    brand_id: Optional[int] = None,
-    category_id: Optional[int] = None,
+    search: Optional[str] = Query(None, max_length=100),
+    brand_id: Optional[int] = Query(None, ge=1),
+    category_id: Optional[int] = Query(None, ge=1),
     sort_by: str = Query("newest"),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)

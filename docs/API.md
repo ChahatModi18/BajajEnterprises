@@ -43,7 +43,7 @@ Authenticates store administrator and issues a stateless JWT Bearer token.
   ```
 
 #### `POST /auth/request-otp`
-Sends a 6-digit verification recovery OTP to the store owner's registered phone.
+Development only: creates an in-memory 6-digit recovery code and returns it as `dev_otp`. This is not a production SMS delivery flow; in production the endpoint returns `503 Service Unavailable` until a shared SMS provider and verified phone ownership are configured.
 - **Request Body:**
   ```json
   {
@@ -55,14 +55,14 @@ Sends a 6-digit verification recovery OTP to the store owner's registered phone.
   ```json
   {
     "success": true,
-    "message": "Verification OTP sent successfully to registered mobile +91 94141 ***62.",
+    "message": "Development OTP created for +91 94141 ***62.",
     "masked_mobile": "+91 94141 ***62",
     "dev_otp": "748291"
   }
   ```
 
 #### `POST /auth/reset-password-otp`
-Validates 6-digit OTP and commits a newly hashed password to the database.
+Validates a 6-digit development OTP and commits a newly hashed password to the database. New passwords must be at least 12 characters and no more than 72 UTF-8 bytes.
 - **Request Body:**
   ```json
   {
@@ -211,9 +211,9 @@ Creates an order reservation and issues an official tracking reference code.
 | `POST` | `/admin/attributes` | Create a new custom field (e.g. `Suspension`) |
 | `POST` | `/admin/catalogue-imports/upload` | Ingest distributor CSV / Excel spreadsheet |
 | `POST` | `/admin/catalogue-imports/{id}/commit` | Atomically commit validated rows to live store |
-| `GET` | `/admin/enquiries` | Fetch customer enquiries with status filter |
+| `GET` | `/admin/enquiries?page=1&page_size=50` | Fetch a bounded page of enquiries and status counts |
 | `PATCH`| `/admin/enquiries/{id}` | Update enquiry status (`RESOLVED`, `CLOSED`) & add notes |
-| `GET` | `/admin/order-requests` | Fetch customer booking requests |
+| `GET` | `/admin/order-requests?page=1&page_size=50` | Fetch a bounded page of orders and status counts |
 | `PATCH`| `/admin/order-requests/{id}` | Progress order lifecycle (`CONFIRMED`, `DELIVERED`) |
 | `GET` | `/admin/settings` | Read showroom operating hours, phone, WhatsApp & policies |
 | `PUT` | `/admin/settings` | Update showroom contact and policy details |

@@ -7,16 +7,20 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: 525600
+        value: 60
       - key: ENVIRONMENT
         value: production
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: CORS_ORIGINS
-        value: '["https://www.bajajenterprises.com","https://bajajenterprises.com","*"]'
+        value: '["https://www.bajajenterprises.com","https://bajajenterprises.com","https://bajajenterprises.vercel.app","https://bajaj-frontend.onrender.com"]'
 
   # 2. React Vite Frontend Static Site
   - type: web

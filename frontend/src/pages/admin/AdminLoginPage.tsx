@@ -90,8 +90,8 @@ export const AdminLoginPage: React.FC = () => {
       setOtpMsg('New password and confirmation do not match.');
       return;
     }
-    if (newPassword.length < 6) {
-      setOtpMsg('Password must be at least 6 characters long.');
+    if (newPassword.length < 12) {
+      setOtpMsg('Password must be at least 12 characters long.');
       return;
     }
 
@@ -124,6 +124,7 @@ export const AdminLoginPage: React.FC = () => {
   };
 
   const fillDefaultCredentials = () => {
+    if (!import.meta.env.DEV) return;
     setEmail('admin@bajajenterprises.com');
     const customPass = localStorage.getItem('bajaj_custom_admin_password');
     setPassword(customPass || 'Admin@Bajaj2026');
@@ -201,13 +202,17 @@ export const AdminLoginPage: React.FC = () => {
               <label className="text-xs font-bold text-slate-700">
                 Secure Password
               </label>
-              <button
-                type="button"
-                onClick={() => setForgotModalOpen(true)}
-                className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700"
-              >
-                Forgot Password / OTP Reset?
-              </button>
+              {import.meta.env.DEV ? (
+                <button
+                  type="button"
+                  onClick={() => setForgotModalOpen(true)}
+                  className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700"
+                >
+                  Forgot Password / OTP Reset?
+                </button>
+              ) : (
+                <span className="text-[11px] text-slate-500">Contact your administrator for recovery.</span>
+              )}
             </div>
             <div className="relative">
               <input
@@ -233,7 +238,7 @@ export const AdminLoginPage: React.FC = () => {
         </form>
 
         {/* Quick Tools & Hint Footer */}
-        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-center space-y-2">
+        {import.meta.env.DEV && <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-center space-y-2">
           <div className="flex items-center justify-center gap-3">
             <button
               type="button"
@@ -252,7 +257,7 @@ export const AdminLoginPage: React.FC = () => {
               <span>{showHint ? 'Hide Hint' : 'Show Password Hint'}</span>
             </button>
           </div>
-        </div>
+        </div>}
 
         <div className="text-center pt-2">
           <Link to="/" className="text-xs text-slate-500 hover:text-slate-700">
@@ -262,7 +267,7 @@ export const AdminLoginPage: React.FC = () => {
       </div>
 
       {/* Forgot Password via Mobile OTP Modal */}
-      {forgotModalOpen && (
+      {import.meta.env.DEV && forgotModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative space-y-4">
             <button
@@ -355,7 +360,9 @@ export const AdminLoginPage: React.FC = () => {
                   <input
                     type="password"
                     required
-                    placeholder="Minimum 6 characters"
+                    placeholder="At least 12 characters"
+                    minLength={12}
+                    maxLength={72}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-emerald-500"
@@ -369,6 +376,8 @@ export const AdminLoginPage: React.FC = () => {
                   <input
                     type="password"
                     required
+                    minLength={12}
+                    maxLength={72}
                     placeholder="Re-type new password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

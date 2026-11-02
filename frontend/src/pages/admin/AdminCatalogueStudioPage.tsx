@@ -10,6 +10,8 @@ import { apiRequest } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useHelp } from '../../context/HelpContext';
+import { CameraCaptureModal } from '../../admin/components/CameraCaptureModal';
+import { UploadCloud, FileSpreadsheet, FileText } from 'lucide-react';
 
 export const AdminCatalogueStudioPage: React.FC = () => {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
@@ -30,6 +32,13 @@ export const AdminCatalogueStudioPage: React.FC = () => {
   // Print Mode Modal
   const [printModalOpen, setPrintModalOpen] = useState(false);
 
+  // Direct Camera Capture Modal
+  const [cameraModalProduct, setCameraModalProduct] = useState<Product | null>(null);
+  // Direct Bulk Ingestion Drawer
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkTitle, setBulkTitle] = useState('');
+  const [bulkTag, setBulkTag] = useState('Wholesale Price List');
   // Quick Photo Upload Modal
   const [photoModalProduct, setPhotoModalProduct] = useState<Product | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -317,7 +326,15 @@ export const AdminCatalogueStudioPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setBulkModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition shadow-sm"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Upload Bulk PDF / CSV Catalogue</span>
+          </button>
           <button
             type="button"
             onClick={() => setPrintModalOpen(true)}
@@ -504,6 +521,17 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                       {product.stock_quantity > 0 ? `${product.stock_quantity} in Stock` : 'Out of Stock'}
                     </span>
 
+                    {/* Direct Camera Shutter Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setCameraModalProduct(product)}
+                      className="absolute bottom-3 left-3 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold flex items-center gap-1.5 backdrop-blur-sm transition shadow-lg active:scale-95"
+                      title="Open Live Camera to photograph this bicycle"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Camera Snap</span>
+                    </button>
+
                     {/* Photo Action Overlay Button */}
                     <button
                       type="button"
@@ -645,6 +673,21 @@ export const AdminCatalogueStudioPage: React.FC = () => {
               Upload side-angle bicycle photographs. Supports JPG, PNG, WEBP from your phone or computer.
             </p>
 
+            {/* Direct WebRTC Camera Trigger */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setCameraModalProduct(photoModalProduct);
+                  setPhotoModalProduct(null);
+                }}
+                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-emerald-400 font-bold text-xs rounded-2xl flex items-center justify-center gap-2 border border-emerald-500/30 shadow-md transition group"
+              >
+                <Camera className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition" />
+                <span>Open Live Showroom Camera Viewfinder</span>
+              </button>
+            </div>
+
             {/* Direct Upload Box */}
             <label className="block p-6 border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl text-center cursor-pointer bg-slate-50 transition group">
               <Upload className="w-8 h-8 text-emerald-600 mx-auto mb-2 group-hover:scale-110 transition" />
@@ -656,7 +699,7 @@ export const AdminCatalogueStudioPage: React.FC = () => {
               </span>
               <input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                 disabled={uploadingPhoto}
                 onChange={(e) => {
                   if (e.target.files?.[0]) handlePhotoUpload(e.target.files[0]);
@@ -886,7 +929,7 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                   <input
                     type="file"
                     multiple
-                    accept="image/*"
+                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                     onChange={handleStageFiles}
                     className="hidden"
                   />
@@ -1075,6 +1118,154 @@ export const AdminCatalogueStudioPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Live Camera Capture Modal */}
+      <CameraCaptureModal
+        isOpen={cameraModalProduct !== null}
+        onClose={() => setCameraModalProduct(null)}
+        title={cameraModalProduct ? `Photograph: ${cameraModalProduct.name}` : "Take Bicycle Photograph"}
+        subtitle="Align bicycle in showroom and snap. Photo will immediately attach as primary catalogue picture."
+        onCapture={async (file: File) => {
+          if (!cameraModalProduct) return;
+          setUploadingPhoto(true);
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('is_primary', 'true');
+            const token = localStorage.getItem('bajaj_admin_token');
+            const res = await fetch(`/api/v1/admin/products/${cameraModalProduct.id}/images`, {
+              method: 'POST',
+              headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+              body: formData,
+            });
+            if (res.ok) {
+              const updated = await res.json();
+              setProducts(prev => prev.map(p => p.id === cameraModalProduct.id ? {
+                ...p,
+                images: [updated, ...(p.images || []).filter(img => img.id !== updated.id)]
+              } : p));
+              setFeedbackMsg(`New camera photograph saved for ${cameraModalProduct.name}!`);
+              setTimeout(() => setFeedbackMsg(null), 3000);
+            }
+          } catch (err: any) {
+            console.error('Photo save error:', err);
+          } finally {
+            setUploadingPhoto(false);
+          }
+        }}
+      />
+
+      {/* Direct In-Studio Bulk Ingestion Modal */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 text-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative animate-scale-in">
+            <button
+              onClick={() => setBulkModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <UploadCloud className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Direct Bulk Catalogue Ingestion</h3>
+                <p className="text-xs text-slate-400">Attach whole-brand CSV, XLSX or PDF catalogue directly</p>
+              </div>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const input = (document.getElementById('studio-bulk-file') as HTMLInputElement);
+                if (!input || !input.files || !input.files[0]) {
+                  alert('Please select a file.');
+                  return;
+                }
+                setBulkUploading(true);
+                const formData = new FormData();
+                formData.append('file', input.files[0]);
+                formData.append('title', bulkTitle || input.files[0].name);
+                formData.append('category_tag', bulkTag);
+                try {
+                  const res = await apiRequest('/admin/catalogue-imports/upload', {
+                    method: 'POST',
+                    body: formData,
+                  });
+                  if (res && res.import_id && res.file_type !== 'pdf') {
+                    await apiRequest(`/admin/catalogue-imports/${res.import_id}/validate`, { method: 'POST' });
+                    await apiRequest(`/admin/catalogue-imports/${res.import_id}/commit`, { method: 'POST' });
+                  }
+                  setFeedbackMsg(`Bulk catalogue "${bulkTitle || input.files[0].name}" successfully ingested into live catalogue!`);
+                  setBulkModalOpen(false);
+                  loadData();
+                  setTimeout(() => setFeedbackMsg(null), 4000);
+                } catch (err: any) {
+                  alert(err.message || 'Error uploading bulk catalogue.');
+                } finally {
+                  setBulkUploading(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Batch Name / Title</label>
+                <input
+                  type="text"
+                  required
+                  value={bulkTitle}
+                  onChange={(e) => setBulkTitle(e.target.value)}
+                  placeholder="e.g. AVON 2026 Festive Catalogue (PDF) or City Bikes CSV"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Tag / Segment</label>
+                <select
+                  value={bulkTag}
+                  onChange={(e) => setBulkTag(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Wholesale Price List">Wholesale Price List</option>
+                  <option value="Bicycle Catalog PDF">Bicycle Catalog PDF</option>
+                  <option value="Specifications Sheet">Specifications Sheet</option>
+                  <option value="Seasonal Range">Seasonal Range</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Select File (.csv, .xlsx, or .pdf up to 25MB)</label>
+                <input
+                  id="studio-bulk-file"
+                  type="file"
+                  required
+                  accept=".csv,.xlsx,.xls,.pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf"
+                  className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setBulkModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkUploading}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/30 flex items-center gap-2"
+                >
+                  {bulkUploading ? 'Ingesting Catalogue...' : 'Upload & Commit into Catalogue'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

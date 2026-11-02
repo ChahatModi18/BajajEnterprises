@@ -305,8 +305,12 @@ class CatalogueImport(Base):
     __tablename__ = "catalogue_imports"
 
     id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=True)
+    category_tag = Column(String(100), nullable=True)
     filename = Column(String(255), nullable=False)
-    file_type = Column(String(50), nullable=False) # csv, xlsx
+    file_type = Column(String(50), nullable=False) # csv, xlsx, pdf
+    file_url = Column(String(500), nullable=True)
+    file_size_bytes = Column(Integer, default=0, nullable=False)
     total_rows = Column(Integer, default=0, nullable=False)
     valid_rows = Column(Integer, default=0, nullable=False)
     error_rows = Column(Integer, default=0, nullable=False)
@@ -314,3 +318,37 @@ class CatalogueImport(Base):
     errors_json = Column(JSON, nullable=True)
     preview_data_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+class Feedback(Base, TimestampMixin):
+    __tablename__ = "feedbacks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_name = Column(String(255), nullable=False)
+    customer_contact = Column(String(100), nullable=True)
+    rating = Column(Integer, nullable=False, default=5)
+    category = Column(String(100), nullable=False, default="Showroom Purchase")
+    comment = Column(Text, nullable=False)
+    bicycle_model = Column(String(255), nullable=True)
+    is_approved = Column(Boolean, default=True, nullable=False)
+    is_featured = Column(Boolean, default=False, nullable=False)
+
+    @property
+    def name(self) -> str:
+        return self.customer_name
+
+    @name.setter
+    def name(self, val: str):
+        self.customer_name = val
+
+    @property
+    def service_type(self) -> str:
+        return self.category
+
+    @service_type.setter
+    def service_type(self, val: str):
+        self.category = val
+
+    __table_args__ = (
+        Index('idx_feedback_approved_featured', 'is_approved', 'is_featured'),
+        Index('idx_feedback_rating', 'rating'),
+    )

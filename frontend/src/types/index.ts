@@ -241,3 +241,40 @@ export interface StoreSettings {
   policy_warranty?: string;
   policy_delivery?: string;
 }
+
+
+export interface Feedback {
+  id: number;
+  name: string;
+  phone?: string;
+  email?: string;
+  rating: number;
+  comment: string;
+  bicycle_model?: string;
+  service_type?: string;
+  is_approved: boolean;
+  is_featured: boolean;
+  created_at: string;
+}
+
+export interface FeedbackSummary {
+  items: Feedback[];
+  total: number;
+  average_rating: number;
+  rating_breakdown: Record<string, number>;
+}
+
+export interface CatalogueBatch {
+  id: number;
+  title: string;
+  category_tag: string;
+  filename: string;
+  file_type: 'csv' | 'xlsx' | 'pdf' | string;
+  file_url?: string;
+  file_size_bytes: number;
+  total_rows: number;
+  valid_rows: number;
+  error_rows: number;
+  status: string;
+  created_at: string;
+}

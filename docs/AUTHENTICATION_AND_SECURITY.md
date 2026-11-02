@@ -100,23 +100,14 @@ def require_admin(current_user: User = Depends(get_current_user)):
 
 ---
 
-### 5. Password Recovery via Mobile OTP & Master Hint
+### 5. Password Recovery & Master Hint
 
 #### 5.1 Initial Master Password Hint
 To prevent store owners from being locked out during initial manual showroom management, the login page features an on-demand hint:
 > *"Default showroom master password format: `Admin@Bajaj2026` (Capital 'A', '@' symbol, Year 2026)."*
 
-#### 5.2 Mobile OTP Recovery Workflow
-1. Admin clicks **"Forgot Password / OTP Reset?"**.
-2. Enters the verified showroom registered mobile number (`+91 94141 38662`).
-3. Endpoint `POST /auth/request-otp`:
-   - Validates that the number matches registered records.
-   - Generates a cryptographically random 6-digit OTP code with a 10-minute expiry timestamp.
-4. Admin submits the 6-digit OTP along with their new password.
-5. Endpoint `POST /auth/reset-password-otp`:
-   - Validates OTP and timestamp.
-   - Re-hashes the new password with Bcrypt and commits to the database.
-   - In offline/demo mode, saves to `localStorage.setItem('bajaj_custom_admin_password', newPassword)`.
+#### 5.2 Development OTP Workflow
+The current OTP flow is for local development only. It stores codes in process memory and returns the code in the response; it does not verify phone ownership or send SMS. Production requests return `503 Service Unavailable` until a shared OTP store and SMS provider with verified administrator phone ownership are configured. Do not treat the showroom phone number or the development OTP flow as production account recovery.
 
 ---
 

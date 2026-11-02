@@ -1,7 +1,7 @@
 import re
 from typing import List, Optional, Tuple, Dict, Any
 from fastapi import HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import or_, and_, desc, asc
 from app.models.entities import (
     Brand, Category, Product, ProductAttribute, 
@@ -265,8 +265,8 @@ def get_products(
     query = db.query(Product).options(
         joinedload(Product.brand),
         joinedload(Product.category),
-        joinedload(Product.images),
-        joinedload(Product.attribute_values).joinedload(ProductAttributeValue.attribute)
+        selectinload(Product.images),
+        selectinload(Product.attribute_values).joinedload(ProductAttributeValue.attribute)
     ).filter(Product.is_archived == False)
 
     if not include_unpublished:
@@ -335,13 +335,13 @@ def get_products(
 
     # Sorting
     if sort_by == "price_asc":
-        query = query.order_by(Product.selling_price.asc().nullslast())
+        query = query.order_by(Product.selling_price.asc().nullslast(), Product.id.asc())
     elif sort_by == "price_desc":
-        query = query.order_by(Product.selling_price.desc().nullslast())
+        query = query.order_by(Product.selling_price.desc().nullslast(), Product.id.asc())
     elif sort_by == "name_asc":
-        query = query.order_by(Product.name.asc())
+        query = query.order_by(Product.name.asc(), Product.id.asc())
     else: # newest
-        query = query.order_by(Product.created_at.desc())
+        query = query.order_by(Product.created_at.desc(), Product.id.desc())
 
     items = query.offset((page - 1) * page_size).limit(page_size).all()
     formatted = [format_product_response(p) for p in items]
@@ -351,17 +351,21 @@ def get_product_by_id(db: Session, product_id: int) -> Optional[Product]:
     return db.query(Product).options(
         joinedload(Product.brand),
         joinedload(Product.category),
-        joinedload(Product.images),
-        joinedload(Product.attribute_values).joinedload(ProductAttributeValue.attribute)
+        selectinload(Product.images),
+        selectinload(Product.attribute_values).joinedload(ProductAttributeValue.attribute)
     ).filter(Product.id == product_id).first()
 
 def get_product_by_slug(db: Session, slug: str) -> Optional[Dict[str, Any]]:
     product = db.query(Product).options(
         joinedload(Product.brand),
         joinedload(Product.category),
-        joinedload(Product.images),
-        joinedload(Product.attribute_values).joinedload(ProductAttributeValue.attribute)
-    ).filter(Product.slug == slug, Product.is_archived == False).first()
+        selectinload(Product.images),
+        selectinload(Product.attribute_values).joinedload(ProductAttributeValue.attribute)
+    ).filter(
+        Product.slug == slug,
+        Product.is_archived == False,
+        Product.is_published == True
+    ).first()
     if not product:
         return None
     return format_product_response(product)

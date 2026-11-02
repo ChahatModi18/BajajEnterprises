@@ -1,6 +1,6 @@
 import { 
   Banner, Brand, Category, Product, Scheme, StoreSettings, 
-  Enquiry, OrderRequest, ProductAttribute 
+  Enquiry, OrderRequest, ProductAttribute, Feedback, CatalogueBatch 
 } from '../types';
 
 export const fallbackSettings: StoreSettings = {
@@ -566,4 +566,87 @@ export const fallbackOrders: OrderRequest[] = [
       },
     ],
   },
+];
+
+
+export const fallbackFeedbacks: Feedback[] = [
+  {
+    id: 1,
+    name: 'Rameshwar Gehlot',
+    phone: '+91 98290 12345',
+    rating: 5,
+    comment: 'Best bicycle showroom in Bikaner! Got an AVON city commuter for daily office commute. Assembly and gear tuning was flawless. Highly recommended at Kote Gate.',
+    bicycle_model: 'AVON City Commuter 26T',
+    service_type: 'Showroom Purchase',
+    is_approved: true,
+    is_featured: true,
+    created_at: '2026-10-20T10:00:00Z',
+  },
+  {
+    id: 2,
+    name: 'Priya Choudhary',
+    phone: '+91 94142 56789',
+    rating: 5,
+    comment: 'Bought a Hercules Roadeo MTB for my son. Owner was very polite, explained frame sizes clearly, and gave genuine warranty with free first service.',
+    bicycle_model: 'Hercules Roadeo Trail MTB',
+    service_type: 'Kids / Youth Bicycle',
+    is_approved: true,
+    is_featured: true,
+    created_at: '2026-10-22T14:30:00Z',
+  },
+  {
+    id: 3,
+    name: 'Vikram Singh Rathore',
+    phone: '+91 97840 98765',
+    rating: 5,
+    comment: 'Transparent pricing and genuine spares. Bajaj Enterprises has been serving Bikaner for decades. Excellent after-sales service and brake adjustment.',
+    bicycle_model: 'Hercules Geared Roadster 21-Speed',
+    service_type: 'Tuning & Service',
+    is_approved: true,
+    is_featured: true,
+    created_at: '2026-10-25T16:15:00Z',
+  },
+  {
+    id: 4,
+    name: 'Amit Bishnoi',
+    phone: '+91 94133 88888',
+    rating: 5,
+    comment: 'Great range of bicycles right near Kote Gate. Very smooth buying experience, they adjusted the seat height and lubricated the chain on the spot.',
+    bicycle_model: 'AVON Speedster Urban',
+    service_type: 'Showroom Purchase',
+    is_approved: true,
+    is_featured: false,
+    created_at: '2026-10-28T12:00:00Z',
+  }
+];
+
+export const fallbackCatalogueBatches: CatalogueBatch[] = [
+  {
+    id: 1,
+    title: 'AVON 2026 Dealer Price List & Specifications',
+    category_tag: 'Wholesale Price List',
+    filename: 'avon_2026_wholesale_catalogue.csv',
+    file_type: 'csv',
+    file_url: '/uploads/catalogues/demo_avon_catalogue.csv',
+    file_size_bytes: 45020,
+    total_rows: 24,
+    valid_rows: 24,
+    error_rows: 0,
+    status: 'COMMITTED',
+    created_at: '2026-10-15T09:00:00Z',
+  },
+  {
+    id: 2,
+    title: 'HERCULES Roadeo Trail MTB Official Catalogue (PDF)',
+    category_tag: 'PDF Catalogue',
+    filename: 'hercules_roadeo_trail_specs.pdf',
+    file_type: 'pdf',
+    file_url: '/uploads/catalogues/demo_hercules_roadeo.pdf',
+    file_size_bytes: 1845000,
+    total_rows: 0,
+    valid_rows: 0,
+    error_rows: 0,
+    status: 'COMMITTED',
+    created_at: '2026-10-18T14:30:00Z',
+  }
 ];

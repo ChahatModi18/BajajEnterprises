@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: FastAPI Server (Uvicorn)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}/backend",
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Frontend: Vite Dev Server",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack: Run Both Backend & Frontend",
+      "configurations": [
+        "Backend: FastAPI Server (Uvicorn)",
+        "Frontend: Vite Dev Server"
+      ]
+    }
+  ]
+}
+

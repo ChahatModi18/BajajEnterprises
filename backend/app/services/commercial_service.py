@@ -2,12 +2,15 @@ import uuid
 import datetime
 from typing import List, Optional, Dict, Any, Tuple
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy import func
 from app.models.entities import (
+    Feedback,
     Banner, Scheme, Enquiry, OrderRequest, 
     OrderRequestItem, Product, Category, scheme_products, scheme_categories
 )
 from app.schemas.commercial import (
+    FeedbackCreate,
     BannerCreate, BannerUpdate, SchemeCreate, SchemeUpdate,
     EnquiryCreate, EnquiryStatusUpdate, CartItemInput, CartCalculationResponse,
     OrderRequestCreate, OrderRequestStatusUpdate
@@ -75,20 +78,27 @@ def delete_banner(db: Session, banner_id: int) -> bool:
 
 # --- SCHEMES ---
 def get_schemes(db: Session, only_active: bool = True) -> List[Scheme]:
-    query = db.query(Scheme).options(joinedload(Scheme.products), joinedload(Scheme.categories))
+    query = db.query(Scheme).options(selectinload(Scheme.products), selectinload(Scheme.categories))
     if only_active:
         now = datetime.datetime.utcnow()
         query = query.filter(
             Scheme.is_active == True,
+            (Scheme.start_date == None) | (Scheme.start_date <= now),
             (Scheme.end_date == None) | (Scheme.end_date >= now)
         )
     return query.order_by(Scheme.created_at.desc()).all()
 
 def get_scheme_by_slug(db: Session, slug: str) -> Optional[Scheme]:
+    now = datetime.datetime.utcnow()
     return db.query(Scheme).options(
-        joinedload(Scheme.products), 
-        joinedload(Scheme.categories)
-    ).filter(Scheme.slug == slug).first()
+        selectinload(Scheme.products),
+        selectinload(Scheme.categories)
+    ).filter(
+        Scheme.slug == slug,
+        Scheme.is_active == True,
+        (Scheme.start_date == None) | (Scheme.start_date <= now),
+        (Scheme.end_date == None) | (Scheme.end_date >= now)
+    ).first()
 
 def create_scheme(db: Session, data: SchemeCreate) -> Scheme:
     slug = data.slug or slugify(data.title)
@@ -175,11 +185,29 @@ def create_enquiry(db: Session, data: EnquiryCreate) -> Enquiry:
 
     return enquiry
 
-def get_enquiries(db: Session, status: Optional[str] = None) -> List[Enquiry]:
+def get_enquiries(db: Session, status: Optional[str] = None, limit: Optional[int] = None, offset: int = 0) -> List[Enquiry]:
     query = db.query(Enquiry).options(joinedload(Enquiry.product))
     if status:
         query = query.filter(Enquiry.status == status)
-    return query.order_by(Enquiry.created_at.desc()).all()
+    query = query.order_by(Enquiry.created_at.desc(), Enquiry.id.desc())
+    if limit is not None:
+        query = query.offset(offset).limit(limit)
+    return query.all()
+
+def count_enquiries(db: Session, status: Optional[str] = None) -> int:
+    query = db.query(Enquiry)
+    if status:
+        query = query.filter(Enquiry.status == status)
+    return query.count()
+
+def count_enquiries_by_status(db: Session) -> Dict[str, int]:
+    return dict(db.query(Enquiry.status, func.count(Enquiry.id)).group_by(Enquiry.status).all())
+
+def iter_enquiries(db: Session, status: Optional[str] = None):
+    query = db.query(Enquiry).options(joinedload(Enquiry.product))
+    if status:
+        query = query.filter(Enquiry.status == status)
+    yield from query.order_by(Enquiry.created_at.desc(), Enquiry.id.desc()).yield_per(500)
 
 def update_enquiry_status(db: Session, enquiry_id: int, data: EnquiryStatusUpdate) -> Optional[Enquiry]:
     enquiry = db.query(Enquiry).filter(Enquiry.id == enquiry_id).first()
@@ -204,7 +232,11 @@ def calculate_cart_totals(db: Session, items: List[CartItemInput]) -> CartCalcul
         )
 
     product_ids = [it.product_id for it in items]
-    products = db.query(Product).options(joinedload(Product.images)).filter(Product.id.in_(product_ids)).all()
+    products = db.query(Product).options(selectinload(Product.images)).filter(
+        Product.id.in_(product_ids),
+        Product.is_archived == False,
+        Product.is_published == True
+    ).all()
     prod_map = {p.id: p for p in products}
 
     calc_items = []
@@ -319,11 +351,29 @@ def create_order_request(db: Session, data: OrderRequestCreate) -> OrderRequest:
 
     return order
 
-def get_order_requests(db: Session, status: Optional[str] = None) -> List[OrderRequest]:
-    query = db.query(OrderRequest).options(joinedload(OrderRequest.items))
+def get_order_requests(db: Session, status: Optional[str] = None, limit: Optional[int] = None, offset: int = 0) -> List[OrderRequest]:
+    query = db.query(OrderRequest).options(selectinload(OrderRequest.items))
     if status:
         query = query.filter(OrderRequest.status == status)
-    return query.order_by(OrderRequest.created_at.desc()).all()
+    query = query.order_by(OrderRequest.created_at.desc(), OrderRequest.id.desc())
+    if limit is not None:
+        query = query.offset(offset).limit(limit)
+    return query.all()
+
+def count_order_requests(db: Session, status: Optional[str] = None) -> int:
+    query = db.query(OrderRequest)
+    if status:
+        query = query.filter(OrderRequest.status == status)
+    return query.count()
+
+def count_order_requests_by_status(db: Session) -> Dict[str, int]:
+    return dict(db.query(OrderRequest.status, func.count(OrderRequest.id)).group_by(OrderRequest.status).all())
+
+def iter_order_requests(db: Session, status: Optional[str] = None):
+    query = db.query(OrderRequest).options(selectinload(OrderRequest.items))
+    if status:
+        query = query.filter(OrderRequest.status == status)
+    yield from query.order_by(OrderRequest.created_at.desc(), OrderRequest.id.desc()).yield_per(500)
 
 def update_order_request_status(db: Session, order_id: int, data: OrderRequestStatusUpdate) -> Optional[OrderRequest]:
     order = db.query(OrderRequest).filter(OrderRequest.id == order_id).first()
@@ -334,3 +384,118 @@ def update_order_request_status(db: Session, order_id: int, data: OrderRequestSt
     db.commit()
     db.refresh(order)
     return order
+
+
+# --- FEEDBACK & RATINGS ---
+DEFAULT_FEEDBACKS = [
+    {
+        "customer_name": "Rameshwar Gehlot",
+        "customer_contact": "+91 98290 12345",
+        "rating": 5,
+        "comment": "Best bicycle showroom in Bikaner! Got an AVON city commuter for daily office commute. Assembly and gear tuning was flawless. Highly recommended at Kote Gate.",
+        "bicycle_model": "AVON City Commuter 26T",
+        "category": "Showroom Purchase",
+        "is_approved": True,
+        "is_featured": True
+    },
+    {
+        "customer_name": "Priya Choudhary",
+        "customer_contact": "+91 94142 56789",
+        "rating": 5,
+        "comment": "Bought a Hercules Roadeo MTB for my son. Owner was very polite, explained frame sizes clearly, and gave genuine warranty with free first service.",
+        "bicycle_model": "Hercules Roadeo Trail MTB",
+        "category": "Kids / Youth Bicycle",
+        "is_approved": True,
+        "is_featured": True
+    },
+    {
+        "customer_name": "Vikram Singh Rathore",
+        "customer_contact": "+91 97840 98765",
+        "rating": 5,
+        "comment": "Transparent pricing and genuine spares. Bajaj Enterprises has been serving Bikaner for decades. Excellent after-sales service and brake adjustment.",
+        "bicycle_model": "Hercules Geared Roadster 21-Speed",
+        "category": "Tuning & Service",
+        "is_approved": True,
+        "is_featured": True
+    }
+]
+
+def get_feedbacks(db: Session, only_approved: bool = True, limit: int = 50) -> List[Feedback]:
+    query = db.query(Feedback)
+    if only_approved:
+        query = query.filter(Feedback.is_approved == True)
+    items = query.order_by(Feedback.is_featured.desc(), Feedback.created_at.desc()).limit(limit).all()
+    if not items and only_approved:
+        for f_data in DEFAULT_FEEDBACKS:
+            fb = Feedback(**f_data)
+            db.add(fb)
+        db.commit()
+        items = db.query(Feedback).filter(Feedback.is_approved == True).order_by(Feedback.is_featured.desc(), Feedback.created_at.desc()).limit(limit).all()
+    return items
+
+def get_feedback_summary(db: Session) -> Dict[str, Any]:
+    feedbacks = get_feedbacks(db, only_approved=True, limit=100)
+    total = len(feedbacks)
+    avg_rating = round(sum(f.rating for f in feedbacks) / total, 1) if total > 0 else 5.0
+    breakdown = {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
+    for f in feedbacks:
+        key = str(f.rating)
+        if key in breakdown:
+            breakdown[key] += 1
+    return {
+        "items": feedbacks,
+        "total": total,
+        "average_rating": avg_rating,
+        "rating_breakdown": breakdown
+    }
+
+def create_feedback(db: Session, data: FeedbackCreate) -> Feedback:
+    if data.honeypot:
+        return Feedback(
+            customer_name=data.name,
+            customer_contact=data.phone or data.email or "",
+            rating=data.rating,
+            comment=data.comment,
+            is_approved=False
+        )
+    contact = data.phone.strip() if data.phone else (data.email.strip() if data.email else "")
+    fb = Feedback(
+        customer_name=data.name.strip(),
+        customer_contact=contact or None,
+        rating=max(1, min(5, data.rating)),
+        comment=data.comment.strip(),
+        bicycle_model=data.bicycle_model.strip() if data.bicycle_model else None,
+        category=data.service_type.strip() if data.service_type else "Showroom Purchase",
+        is_approved=True,
+        is_featured=False
+    )
+    db.add(fb)
+    db.commit()
+    db.refresh(fb)
+    return fb
+
+def toggle_feedback_feature(db: Session, feedback_id: int) -> Optional[Feedback]:
+    fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not fb:
+        return None
+    fb.is_featured = not fb.is_featured
+    db.commit()
+    db.refresh(fb)
+    return fb
+
+def toggle_feedback_approval(db: Session, feedback_id: int) -> Optional[Feedback]:
+    fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not fb:
+        return None
+    fb.is_approved = not fb.is_approved
+    db.commit()
+    db.refresh(fb)
+    return fb
+
+def delete_feedback(db: Session, feedback_id: int) -> bool:
+    fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not fb:
+        return False
+    db.delete(fb)
+    db.commit()
+    return True

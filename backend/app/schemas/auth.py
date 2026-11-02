@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
 
 class Token(BaseModel):
     access_token: str
@@ -14,7 +14,14 @@ class TokenPayload(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes")
+        return value
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -32,10 +39,17 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class OTPRequest(BaseModel):
-    mobile: str
+    mobile: str = Field(min_length=7, max_length=32)
     email: Optional[EmailStr] = "admin@bajajenterprises.com"
 
 class ResetPasswordOTPRequest(BaseModel):
-    mobile: str
-    otp: str
-    new_password: str
+    mobile: str = Field(min_length=7, max_length=32)
+    otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=12, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def reset_password_fits_bcrypt(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes")
+        return value

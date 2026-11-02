@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.models.entities import (
     Brand, Category, Product, ProductAttribute, 
     ProductAttributeValue, ProductImage, StoreSetting,
-    Enquiry, OrderRequest, OrderRequestItem, Scheme, Banner
+    Enquiry, OrderRequest, OrderRequestItem, Scheme, Banner, Feedback
 )
 
 def create_svg_placeholder(filename: str, title: str, subtitle: str, color: str):
@@ -606,6 +606,41 @@ def seed_database(clear_demo_only: bool = False):
                 button_text="Visit Showroom",
                 is_active=True,
                 sort_order=2
+            ))
+
+        
+        # 10. Seed Customer Feedbacks (if none exist)
+        # ----------------------------------------------------
+        if db.query(Feedback).count() == 0:
+            db.add(Feedback(
+                customer_name="Rameshwar Gehlot",
+                customer_contact="+91 98290 12345",
+                rating=5,
+                comment="Best bicycle showroom in Bikaner! Got an AVON city commuter for daily office commute. Assembly and gear tuning was flawless. Highly recommended at Kote Gate.",
+                bicycle_model="AVON City Commuter 26T",
+                category="Showroom Purchase",
+                is_approved=True,
+                is_featured=True
+            ))
+            db.add(Feedback(
+                customer_name="Priya Choudhary",
+                customer_contact="+91 94142 56789",
+                rating=5,
+                comment="Bought a Hercules Roadeo MTB for my son. Owner was very polite, explained frame sizes clearly, and gave genuine warranty with free first service.",
+                bicycle_model="Hercules Roadeo Trail MTB",
+                category="Kids / Youth Bicycle",
+                is_approved=True,
+                is_featured=True
+            ))
+            db.add(Feedback(
+                customer_name="Vikram Singh Rathore",
+                customer_contact="+91 97840 98765",
+                rating=5,
+                comment="Transparent pricing and genuine spares. Bajaj Enterprises has been serving Bikaner for decades. Excellent after-sales service and brake adjustment.",
+                bicycle_model="Hercules Geared Roadster 21-Speed",
+                category="Tuning & Service",
+                is_approved=True,
+                is_featured=True
             ))
 
         db.commit()

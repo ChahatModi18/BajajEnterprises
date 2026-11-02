@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Heart, Search, MapPin, Phone, 
-  Menu, X, ChevronDown, MessageSquare
+  Menu, X, ChevronDown, MessageSquare, Star
 } from 'lucide-react';
+import { FeedbackModal } from '../modals/FeedbackModal';
 import { useSettings } from '../../context/SettingsContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -14,6 +15,7 @@ export const Navbar: React.FC = () => {
   const { totalCount: wishlistCount } = useWishlist();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -105,6 +107,16 @@ export const Navbar: React.FC = () => {
             <MessageSquare className="w-4 h-4 text-emerald-600" />
             <span>Enquire / Quote</span>
           </Link>
+
+          {/* Rate Us Button */}
+          <button
+            onClick={() => setFeedbackOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold transition active:scale-95"
+            title="Rate your experience at Bajaj Enterprises"
+          >
+            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+            <span>Rate Us</span>
+          </button>
 
           {/* Wishlist */}
           <Link
@@ -220,10 +232,26 @@ export const Navbar: React.FC = () => {
             <Link to="/schemes" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md font-bold text-amber-600 hover:bg-amber-50">Schemes & Offers</Link>
             <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md hover:bg-slate-100">About Bajaj Enterprises</Link>
             <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md hover:bg-slate-100">Store Directions & Contact</Link>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setFeedbackOpen(true);
+              }}
+              className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs transition"
+            >
+              <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+              <span>Rate Showroom Experience (रेटिंग दें)</span>
+            </button>
 
           </div>
         </div>
       )}
+      {/* Feedback & Rating Modal */}
+      <FeedbackModal
+        isOpen={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+      />
     </header>
   );
 };

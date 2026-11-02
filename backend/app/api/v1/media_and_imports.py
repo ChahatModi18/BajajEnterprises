@@ -65,13 +65,20 @@ def delete_product_image(
 @router.post("/admin/catalogue-imports/upload")
 def upload_catalogue_file(
     file: UploadFile = File(...),
+    title: Optional[str] = Form(None),
+    category_tag: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     admin: User = Depends(get_current_admin)
 ):
-    import_rec = import_service.create_import_record(db, file)
+    import_rec = import_service.create_import_record(db, file, title=title, category_tag=category_tag)
     return {
         "import_id": import_rec.id,
+        "title": import_rec.title,
+        "category_tag": import_rec.category_tag,
         "filename": import_rec.filename,
+        "file_type": import_rec.file_type,
+        "file_url": import_rec.file_url,
+        "file_size_bytes": import_rec.file_size_bytes,
         "total_rows": import_rec.total_rows,
         "status": import_rec.status,
         "preview_data": import_rec.preview_data_json[:10] if import_rec.preview_data_json else []
@@ -85,14 +92,39 @@ def list_catalogue_imports(
     imports = db.query(CatalogueImport).order_by(CatalogueImport.created_at.desc()).all()
     return [{
         "id": i.id,
+        "title": i.title or i.filename,
+        "category_tag": i.category_tag or "General",
         "filename": i.filename,
         "file_type": i.file_type,
+        "file_url": i.file_url,
+        "file_size_bytes": i.file_size_bytes,
         "total_rows": i.total_rows,
         "valid_rows": i.valid_rows,
         "error_rows": i.error_rows,
         "status": i.status,
         "created_at": i.created_at
     } for i in imports]
+
+@router.delete("/admin/catalogue-imports/{import_id}")
+def delete_catalogue_import(
+    import_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin)
+):
+    rec = db.query(CatalogueImport).filter(CatalogueImport.id == import_id).first()
+    if not rec:
+        raise HTTPException(status_code=404, detail="Catalogue import batch not found")
+    if rec.file_url and rec.file_url.startswith("/uploads/"):
+        rel_path = rec.file_url.lstrip("/")
+        full_path = os.path.join("uploads", rel_path.replace("uploads/", "", 1))
+        if os.path.exists(full_path):
+            try:
+                os.remove(full_path)
+            except Exception:
+                pass
+    db.delete(rec)
+    db.commit()
+    return {"message": "Catalogue batch deleted successfully"}
 
 @router.get("/admin/catalogue-imports/{import_id}")
 def get_catalogue_import_detail(

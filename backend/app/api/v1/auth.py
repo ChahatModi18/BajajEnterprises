@@ -1,4 +1,4 @@
-import random
+import secrets
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -44,6 +44,14 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/request-otp")
 def request_otp(req: OTPRequest, db: Session = Depends(get_db)):
+    # OTP storage and delivery are development-only until a shared, production
+    # SMS provider is configured. Never report success while no message is sent.
+    if settings.ENVIRONMENT.lower() == "production":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password recovery is temporarily unavailable. Contact the store administrator."
+        )
+
     clean_mobile = "".join([c for c in req.mobile if c.isdigit()])
     if len(clean_mobile) < 10:
         raise HTTPException(
@@ -52,7 +60,7 @@ def request_otp(req: OTPRequest, db: Session = Depends(get_db)):
         )
     
     # Generate 6-digit random OTP
-    otp_code = str(random.randint(100000, 999999))
+    otp_code = f"{secrets.randbelow(900000) + 100000}"
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=10)
     
@@ -92,10 +100,10 @@ def reset_password_otp(req: ResetPasswordOTPRequest, db: Session = Depends(get_d
             detail="OTP has expired. Please request a fresh OTP."
         )
         
-    if len(req.new_password) < 6:
+    if len(req.new_password) < 12:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be at least 6 characters long."
+            detail="New password must be at least 12 characters long."
         )
         
     # Find admin user to update password
