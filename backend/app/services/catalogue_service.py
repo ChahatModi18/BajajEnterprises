@@ -114,7 +114,16 @@ def get_attributes(db: Session, category_id: Optional[int] = None, only_active: 
                 ~ProductAttribute.categories.any() # attributes that apply to all categories
             )
         )
-    return query.order_by(ProductAttribute.sort_order.asc(), ProductAttribute.name.asc()).all()
+    raw_attrs = query.order_by(ProductAttribute.sort_order.asc(), ProductAttribute.id.asc()).all()
+    # Deduplicate by attribute name so frontend never sees repeated boxes
+    unique_attrs: List[ProductAttribute] = []
+    seen_names = set()
+    for a in raw_attrs:
+        norm = (a.name or "").strip().lower()
+        if norm and norm not in seen_names:
+            seen_names.add(norm)
+            unique_attrs.append(a)
+    return unique_attrs
 
 def get_attribute_by_id(db: Session, attr_id: int) -> Optional[ProductAttribute]:
     return db.query(ProductAttribute).options(joinedload(ProductAttribute.categories)).filter(ProductAttribute.id == attr_id).first()
@@ -123,6 +132,17 @@ def get_attribute_by_key(db: Session, key: str) -> Optional[ProductAttribute]:
     return db.query(ProductAttribute).filter(ProductAttribute.key == key).first()
 
 def create_attribute(db: Session, data: AttributeCreate) -> ProductAttribute:
+    # If an attribute with the exact same name already exists, reuse it to avoid duplicate boxes
+    existing_by_name = db.query(ProductAttribute).filter(ProductAttribute.name.ilike(data.name.strip())).first()
+    if existing_by_name:
+        if data.options_json:
+            existing_by_name.options_json = data.options_json
+        if data.unit:
+            existing_by_name.unit = data.unit
+        db.commit()
+        db.refresh(existing_by_name)
+        return existing_by_name
+
     key = data.key or slugify(data.name).replace("-", "_")
     existing = db.query(ProductAttribute).filter(ProductAttribute.key == key).first()
     if existing:

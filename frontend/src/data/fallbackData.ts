@@ -580,7 +580,7 @@ export const fallbackOrders: OrderRequest[] = [
 export const fallbackFeedbacks: Feedback[] = [
   {
     id: 1,
-    name: 'Rameshwar Gehlot',
+    name: 'Chahat Modi',
     phone: '+91 98290 12345',
     rating: 5,
     comment: 'Best bicycle showroom in Bikaner! Got an AVON city commuter for daily office commute. Assembly and gear tuning was flawless. Highly recommended at Kote Gate.',
@@ -592,19 +592,19 @@ export const fallbackFeedbacks: Feedback[] = [
   },
   {
     id: 2,
-    name: 'Priya Choudhary',
+    name: 'Harshvardhan Modi',
     phone: '+91 94142 56789',
     rating: 5,
-    comment: 'Bought a Hercules Roadeo MTB for my son. Owner was very polite, explained frame sizes clearly, and gave genuine warranty with free first service.',
+    comment: 'Bought a Hercules Roadeo MTB for daily riding. Owner was very polite, explained frame sizes clearly, and gave genuine warranty with free first service.',
     bicycle_model: 'Hercules Roadeo Trail MTB',
-    service_type: 'Kids / Youth Bicycle',
+    service_type: 'Youth Bicycle',
     is_approved: true,
     is_featured: true,
     created_at: '2026-10-22T14:30:00Z',
   },
   {
     id: 3,
-    name: 'Vikram Singh Rathore',
+    name: 'Leena Sharma',
     phone: '+91 97840 98765',
     rating: 5,
     comment: 'Transparent pricing and genuine spares. Bajaj Enterprises has been serving Bikaner for decades. Excellent after-sales service and brake adjustment.',
@@ -616,14 +616,14 @@ export const fallbackFeedbacks: Feedback[] = [
   },
   {
     id: 4,
-    name: 'Amit Bishnoi',
+    name: 'Jayshree',
     phone: '+91 94133 88888',
     rating: 5,
     comment: 'Great range of bicycles right near Kote Gate. Very smooth buying experience, they adjusted the seat height and lubricated the chain on the spot.',
     bicycle_model: 'AVON Speedster Urban',
     service_type: 'Showroom Purchase',
     is_approved: true,
-    is_featured: false,
+    is_featured: true,
     created_at: '2026-10-28T12:00:00Z',
   }
 ];

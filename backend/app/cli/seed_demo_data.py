@@ -613,7 +613,7 @@ def seed_database(clear_demo_only: bool = False):
         # ----------------------------------------------------
         if db.query(Feedback).count() == 0:
             db.add(Feedback(
-                customer_name="Rameshwar Gehlot",
+                customer_name="Chahat Modi",
                 customer_contact="+91 98290 12345",
                 rating=5,
                 comment="Best bicycle showroom in Bikaner! Got an AVON city commuter for daily office commute. Assembly and gear tuning was flawless. Highly recommended at Kote Gate.",
@@ -623,22 +623,32 @@ def seed_database(clear_demo_only: bool = False):
                 is_featured=True
             ))
             db.add(Feedback(
-                customer_name="Priya Choudhary",
+                customer_name="Harshvardhan Modi",
                 customer_contact="+91 94142 56789",
                 rating=5,
-                comment="Bought a Hercules Roadeo MTB for my son. Owner was very polite, explained frame sizes clearly, and gave genuine warranty with free first service.",
+                comment="Bought a Hercules Roadeo MTB for daily riding. Owner was very polite, explained frame sizes clearly, and gave genuine warranty with free first service.",
                 bicycle_model="Hercules Roadeo Trail MTB",
-                category="Kids / Youth Bicycle",
+                category="Youth Bicycle",
                 is_approved=True,
                 is_featured=True
             ))
             db.add(Feedback(
-                customer_name="Vikram Singh Rathore",
+                customer_name="Leena Sharma",
                 customer_contact="+91 97840 98765",
                 rating=5,
                 comment="Transparent pricing and genuine spares. Bajaj Enterprises has been serving Bikaner for decades. Excellent after-sales service and brake adjustment.",
                 bicycle_model="Hercules Geared Roadster 21-Speed",
                 category="Tuning & Service",
+                is_approved=True,
+                is_featured=True
+            ))
+            db.add(Feedback(
+                customer_name="Jayshree",
+                customer_contact="+91 94133 88888",
+                rating=5,
+                comment="Great range of bicycles right near Kote Gate. Very smooth buying experience, they adjusted the seat height and lubricated the chain on the spot.",
+                bicycle_model="AVON Speedster Urban",
+                category="Showroom Purchase",
                 is_approved=True,
                 is_featured=True
             ))

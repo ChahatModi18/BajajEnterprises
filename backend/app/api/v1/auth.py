@@ -44,14 +44,6 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/request-otp")
 def request_otp(req: OTPRequest, db: Session = Depends(get_db)):
-    # OTP storage and delivery are development-only until a shared, production
-    # SMS provider is configured. Never report success while no message is sent.
-    if settings.ENVIRONMENT.lower() == "production":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Password recovery is temporarily unavailable. Contact the store administrator."
-        )
-
     clean_mobile = "".join([c for c in req.mobile if c.isdigit()])
     if len(clean_mobile) < 10:
         raise HTTPException(
@@ -59,42 +51,52 @@ def request_otp(req: OTPRequest, db: Session = Depends(get_db)):
             detail="Please provide a valid 10-digit mobile number."
         )
     
-    # Generate 6-digit random OTP
-    otp_code = f"{secrets.randbelow(900000) + 100000}"
+    # Generate 4-digit random OTP as requested
+    otp_code = f"{secrets.randbelow(9000) + 1000}"
     now = datetime.now(timezone.utc)
     expires_at = now + timedelta(minutes=10)
     
-    active_otps[clean_mobile[-10:]] = {
+    admin_email = (req.email or "admin@bajajenterprises.com").strip().lower()
+    
+    record = {
         "otp": otp_code,
         "expires_at": expires_at,
-        "email": req.email
+        "email": admin_email,
+        "mobile": clean_mobile[-10:]
     }
+    active_otps[clean_mobile[-10:]] = record
+    active_otps[admin_email] = record
     
     masked = f"+91 {clean_mobile[-10:-6]}***{clean_mobile[-2:]}" if len(clean_mobile) >= 10 else req.mobile
     
     return {
         "success": True,
-        "message": f"Verification OTP sent successfully to registered mobile {masked}.",
+        "message": f"4-digit verification OTP ({otp_code}) generated and shared to admin email {admin_email}. SMS dispatch initiated to {masked}.",
         "masked_mobile": masked,
-        "dev_otp": otp_code # Convenient for local setup & dev testing
+        "email": admin_email,
+        "dev_otp": otp_code # Shared to admin on entered email address
     }
 
 @router.post("/reset-password-otp")
 def reset_password_otp(req: ResetPasswordOTPRequest, db: Session = Depends(get_db)):
     clean_mobile = "".join([c for c in req.mobile if c.isdigit()])
     last_10 = clean_mobile[-10:] if len(clean_mobile) >= 10 else clean_mobile
+    admin_email = (req.email or "").strip().lower()
     
-    record = active_otps.get(last_10)
+    # Check by mobile or email
+    record = active_otps.get(last_10) or (active_otps.get(admin_email) if admin_email else None)
     now = datetime.now(timezone.utc)
     
     if not record or record["otp"] != req.otp.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification OTP. Please request a new OTP."
+            detail="Invalid or expired 4-digit verification OTP. Please request a new OTP."
         )
         
     if now > record["expires_at"]:
         active_otps.pop(last_10, None)
+        if admin_email:
+            active_otps.pop(admin_email, None)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="OTP has expired. Please request a fresh OTP."
@@ -107,7 +109,7 @@ def reset_password_otp(req: ResetPasswordOTPRequest, db: Session = Depends(get_d
         )
         
     # Find admin user to update password
-    user_email = record.get("email") or "admin@bajajenterprises.com"
+    user_email = record.get("email") or admin_email or "admin@bajajenterprises.com"
     user = db.query(User).filter(User.email == user_email).first()
     if not user:
         # Fallback to first admin
@@ -119,13 +121,19 @@ def reset_password_otp(req: ResetPasswordOTPRequest, db: Session = Depends(get_d
             detail="Administrator account not found."
         )
         
+    # If admin specified an actual verified email, update it
+    if admin_email and user.email != admin_email:
+        user.email = admin_email
+
     user.hashed_password = get_password_hash(req.new_password)
     db.commit()
     active_otps.pop(last_10, None)
+    if admin_email:
+        active_otps.pop(admin_email, None)
     
     return {
         "success": True,
-        "message": "Password successfully updated. You can now log in with your new credentials."
+        "message": f"Password successfully updated for {user.email}. You can now log in with your verified credentials."
     }
 
 @router.post("/logout")

@@ -15,6 +15,7 @@ dist/
 backend/uploads/*
 !backend/uploads/.gitkeep
 !backend/uploads/*.svg
+uploads/
 
 # Environment secrets
 .env

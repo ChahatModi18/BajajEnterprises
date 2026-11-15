@@ -9,6 +9,7 @@ import { CustomerAuthProvider } from './context/CustomerAuthContext';
 // Public Components & Pages
 import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
+import { CustomerSupportBot } from './components/common/CustomerSupportBot';
 import { HelpProvider } from './context/HelpContext';
 
 // Load route pages on demand so storefront visitors do not download the admin tools.
@@ -147,6 +148,7 @@ export function App() {
                             </Routes>
                           </main>
                           <Footer />
+                          <CustomerSupportBot />
                         </div>
                       }
                     />

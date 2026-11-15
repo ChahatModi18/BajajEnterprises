@@ -21,6 +21,7 @@ export const ContactPage: React.FC = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [referenceNo, setReferenceNo] = useState<string | null>(null);
+  const [mailtoLink, setMailtoLink] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,6 +57,13 @@ export const ContactPage: React.FC = () => {
       });
 
       setReferenceNo(res.reference_no);
+      if (res.mailto_link) {
+        setMailtoLink(res.mailto_link);
+      } else {
+        const sub = encodeURIComponent(`Bicycle Enquiry [${res.reference_no}] - ${name.trim()}`);
+        const bod = encodeURIComponent(`Hello Bajaj Enterprises Team,\n\nI have submitted an enquiry via your website.\n\nReference: ${res.reference_no}\nName: ${name.trim()}\nPhone: ${phone.trim()}\nEmail: ${email.trim() || 'N/A'}\nMessage:\n${fullMessage}\n\nBajaj Enterprises Showroom\nOpp. Joshi Sweets, Alakh Sagar Road, Kote Gate, Bikaner\nPhone: +91 94141 38662`);
+        setMailtoLink(`mailto:bajajenterprisesbikaner@gmail.com?subject=${sub}&body=${bod}`);
+      }
       setName('');
       setPhone('');
       setEmail('');
@@ -180,12 +188,32 @@ export const ContactPage: React.FC = () => {
               <p className="text-xs text-slate-500">
                 Our store staff will reach out to you via your selected contact method.
               </p>
-              <button
-                onClick={() => setReferenceNo(null)}
-                className="mt-4 px-6 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700"
-              >
-                Send Another Message
-              </button>
+
+              {mailtoLink && (
+                <div className="pt-2">
+                  <a
+                    href={mailtoLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 transition"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Save to My Email Inbox / ईमेल में सेव करें</span>
+                  </a>
+                  <span className="block text-[10px] text-slate-400 mt-1">
+                    Click to open a pre-filled confirmation email in your email app
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <button
+                  onClick={() => setReferenceNo(null)}
+                  className="mt-2 px-6 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition"
+                >
+                  Send Another Message
+                </button>
+              </div>
             </div>
           ) : (
             <div>

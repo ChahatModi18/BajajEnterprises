@@ -44,8 +44,9 @@ class OTPRequest(BaseModel):
 
 class ResetPasswordOTPRequest(BaseModel):
     mobile: str = Field(min_length=7, max_length=32)
-    otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    otp: str = Field(min_length=4, max_length=6, pattern=r"^\d{4,6}$")
     new_password: str = Field(min_length=12, max_length=72)
+    email: Optional[EmailStr] = None
 
     @field_validator("new_password")
     @classmethod

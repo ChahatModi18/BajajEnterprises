@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Send, CheckCircle2 } from 'lucide-react';
+import { X, Send, CheckCircle2, Mail } from 'lucide-react';
 import { Product } from '../../types';
 import { apiRequest } from '../../utils/api';
 
@@ -24,6 +24,7 @@ export const QuickEnquiryModal: React.FC<QuickEnquiryModalProps> = ({
   const [honeypot, setHoneypot] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successRef, setSuccessRef] = useState<string | null>(null);
+  const [mailtoLink, setMailtoLink] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -47,12 +48,20 @@ export const QuickEnquiryModal: React.FC<QuickEnquiryModalProps> = ({
           email: email.trim() || undefined,
           category: 'Product Enquiry',
           product_id: product?.id,
+          product_name: product?.name,
           message: message.trim(),
           preferred_contact: preferredContact,
           honeypot: honeypot || undefined,
         }),
       });
       setSuccessRef(res.reference_no);
+      if (res.mailto_link) {
+        setMailtoLink(res.mailto_link);
+      } else {
+        const sub = encodeURIComponent(`Bicycle Enquiry [${res.reference_no}] - ${name.trim()}`);
+        const bod = encodeURIComponent(`Hello Bajaj Enterprises,\n\nI have submitted an enquiry for ${product ? product.name : 'Bicycles'}.\n\nReference: ${res.reference_no}\nName: ${name.trim()}\nPhone: ${phone.trim()}\nEmail: ${email.trim() || 'N/A'}\nMessage: ${message.trim()}\n\nBajaj Enterprises Showroom\nOpp. Joshi Sweets, Alakh Sagar Road, Kote Gate, Bikaner\n+91 94141 38662`);
+        setMailtoLink(`mailto:bajajenterprisesbikaner@gmail.com?subject=${sub}&body=${bod}`);
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to submit enquiry. Please try again.');
     } finally {
@@ -75,7 +84,7 @@ export const QuickEnquiryModal: React.FC<QuickEnquiryModalProps> = ({
         </button>
 
         {successRef ? (
-          <div className="py-8 text-center space-y-4">
+          <div className="py-6 text-center space-y-4">
             <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8" />
             </div>
@@ -89,12 +98,32 @@ export const QuickEnquiryModal: React.FC<QuickEnquiryModalProps> = ({
             <p className="text-xs text-slate-500">
               Our store representative will contact you via {preferredContact} shortly.
             </p>
-            <button
-              onClick={onClose}
-              className="mt-4 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700"
-            >
-              Done
-            </button>
+
+            {mailtoLink && (
+              <div className="pt-1">
+                <a
+                  href={mailtoLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 transition"
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>Save to My Email Inbox / ईमेल में सेव करें</span>
+                </a>
+                <span className="block text-[10px] text-slate-400 mt-1">
+                  Click to open a pre-filled confirmation email in your inbox client
+                </span>
+              </div>
+            )}
+
+            <div>
+              <button
+                onClick={onClose}
+                className="mt-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition"
+              >
+                Done
+              </button>
+            </div>
           </div>
         ) : (
           <div>

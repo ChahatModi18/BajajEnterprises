@@ -172,7 +172,16 @@ export const AdminProductsPage: React.FC = () => {
       setProducts(prodsRes.items || []);
       setBrands(brandsRes || []);
       setCategories(catsRes || []);
-      setAttributes(attrsRes || []);
+      const uniqueAttrs: ProductAttribute[] = [];
+      const seenAttrNames = new Set<string>();
+      (attrsRes || []).forEach(a => {
+        const norm = (a.name || '').trim().toLowerCase();
+        if (norm && !seenAttrNames.has(norm)) {
+          seenAttrNames.add(norm);
+          uniqueAttrs.push(a);
+        }
+      });
+      setAttributes(uniqueAttrs);
       if (brandsRes.length > 0 && !brandId) setBrandId(brandsRes[0].id);
       if (catsRes.length > 0 && !categoryId) setCategoryId(catsRes[0].id);
     } catch (err: any) {
