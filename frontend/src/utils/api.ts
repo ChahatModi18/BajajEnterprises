@@ -708,8 +708,17 @@ export async function apiRequest<T = any>(
 
     const contentType = response.headers.get('content-type') || '';
 
-    // If endpoint was rewritten by SPA to index.html (returns text/html for an API route, meaning no remote backend is responding here)
-    if (contentType.includes('text/html')) {
+    // If endpoint was rewritten by SPA to index.html or if the host returned 404/405/502/503/504
+    // (meaning there is no backend API server listening for this route on Vercel/CDN):
+    if (
+      contentType.includes('text/html') ||
+      response.status === 405 ||
+      response.status === 404 ||
+      response.status === 502 ||
+      response.status === 503 ||
+      response.status === 504
+    ) {
+      console.warn(`[API] Host returned ${response.status} (${contentType || 'no content-type'}) for ${method} ${url}; resolving with local fallback storage.`);
       return resolveFallback<T>(endpoint, options);
     }
 
@@ -739,11 +748,12 @@ export async function apiRequest<T = any>(
     return response.text() as any;
   } catch (err: any) {
     // If an actual HTTP response was received from the server (e.g. 400 Bad Request, 401 Unauthorized), rethrow that specific error
-    if (receivedHttpResponse) {
+    // UNLESS it's a 405 Method Not Allowed or 404 Not Found from a static hosting provider (e.g. Vercel)
+    if (receivedHttpResponse && !err.message?.includes('405') && !err.message?.includes('404')) {
       throw err;
     }
     // If the network failed (e.g. backend server offline, CORS blocked, or running on Vercel without separate backend),
-    // gracefully resolve with local fallback and persistence so admin operations and catalogue work smoothly without "Failed to fetch" alerts.
+    // gracefully resolve with local fallback and persistence so admin operations and catalogue work smoothly without alerts.
     console.warn(`[API] Network request to ${url} unreachable; falling back to local storage handler:`, err);
     return resolveFallback<T>(endpoint, options);
   }
