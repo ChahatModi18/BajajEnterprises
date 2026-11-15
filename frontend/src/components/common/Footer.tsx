@@ -82,6 +82,7 @@ export const Footer: React.FC = () => {
             <ul className="space-y-2.5 text-sm text-slate-400">
               <li><Link to="/about" className="hover:text-emerald-400 transition">About Bajaj Enterprises</Link></li>
               <li><Link to="/contact" className="hover:text-emerald-400 transition">Store Location & Directions</Link></li>
+              <li><Link to="/rating" className="hover:text-amber-400 transition font-bold text-amber-400 flex items-center gap-1.5">Customer Ratings & Reviews (समीक्षाएं)</Link></li>
               <li><Link to="/schemes" className="hover:text-emerald-400 transition">Current Schemes & Offers</Link></li>
               <li><Link to="/policies/warranty" className="hover:text-emerald-400 transition">Warranty & Service Policy</Link></li>
               <li><Link to="/policies/returns" className="hover:text-emerald-400 transition">Returns & Cancellations</Link></li>

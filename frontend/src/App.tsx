@@ -48,6 +48,7 @@ const AdminSchemesPage = lazyNamed(() => import('./pages/admin/AdminSchemesPage'
 const AdminSettingsPage = lazyNamed(() => import('./pages/admin/AdminSettingsPage'), 'AdminSettingsPage');
 const CustomerAuthPage = lazyNamed(() => import('./pages/CustomerAuthPage'), 'CustomerAuthPage');
 const CustomerAccountPage = lazyNamed(() => import('./pages/CustomerAccountPage'), 'CustomerAccountPage');
+const CustomerRatingPage = lazyNamed(() => import('./pages/CustomerRatingPage'), 'CustomerRatingPage');
 
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -107,6 +108,7 @@ export function App() {
                       <Route path="categories" element={<AdminCategoriesPage />} />
                       <Route path="bulk-catalogues" element={<AdminBulkCataloguesPage />} />
                       <Route path="feedback" element={<AdminFeedbackPage />} />
+                      <Route path="ratings" element={<AdminFeedbackPage />} />
                       <Route path="import" element={<AdminBulkCataloguesPage />} />
                       <Route path="enquiries" element={<AdminEnquiriesPage />} />
                       <Route path="orders" element={<AdminOrdersPage />} />
@@ -135,6 +137,9 @@ export function App() {
                               <Route path="/wishlist" element={<WishlistPage />} />
                               <Route path="/about" element={<AboutPage />} />
                               <Route path="/contact" element={<ContactPage />} />
+                              <Route path="/rating" element={<CustomerRatingPage />} />
+                              <Route path="/rate-us" element={<CustomerRatingPage />} />
+                              <Route path="/reviews" element={<CustomerRatingPage />} />
                               <Route path="/policies/:policyType" element={<PoliciesPage />} />
                               <Route path="/policies" element={<PoliciesPage />} />
                               <Route path="/faq" element={<PoliciesPage />} />

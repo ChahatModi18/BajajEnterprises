@@ -109,14 +109,14 @@ export const Navbar: React.FC = () => {
           </Link>
 
           {/* Rate Us Button */}
-          <button
-            onClick={() => setFeedbackOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold transition active:scale-95"
-            title="Rate your experience at Bajaj Enterprises"
+          <Link
+            to="/rating"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold transition active:scale-95 shadow-sm"
+            title="Customer Ratings & Reviews at Bajaj Enterprises"
           >
             <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-            <span>Rate Us</span>
-          </button>
+            <span>Rate Us (समीक्षा दें)</span>
+          </Link>
 
           {/* Wishlist */}
           <Link
@@ -192,6 +192,10 @@ export const Navbar: React.FC = () => {
             <span>Current Schemes & Offers</span>
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
           </Link>
+          <Link to="/rating" className="hover:text-emerald-600 transition font-bold text-amber-600 flex items-center gap-1">
+            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+            <span>Customer Ratings</span>
+          </Link>
           <Link to="/about" className="hover:text-emerald-600 transition">About Store</Link>
           <Link to="/contact" className="hover:text-emerald-600 transition">Contact & Location</Link>
         </div>
@@ -232,6 +236,14 @@ export const Navbar: React.FC = () => {
             <Link to="/schemes" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md font-bold text-amber-600 hover:bg-amber-50">Schemes & Offers</Link>
             <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md hover:bg-slate-100">About Bajaj Enterprises</Link>
             <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="px-3 py-2 rounded-md hover:bg-slate-100">Store Directions & Contact</Link>
+            <Link
+              to="/rating"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2 rounded-md font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-1.5"
+            >
+              <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+              <span>Customer Ratings & Reviews (समीक्षा दें)</span>
+            </Link>
             <button
               type="button"
               onClick={() => {
