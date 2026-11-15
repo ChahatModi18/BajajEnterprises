@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { Product, Brand, Category, ProductAttribute } from '../../types';
 import { apiRequest } from '../../utils/api';
+import { compressImageForMobile } from '../../utils/imageUtils';
+import { LayoutGrid, Grid } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const AdminProductsPage: React.FC = () => {
@@ -25,6 +27,12 @@ export const AdminProductsPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [imageModalProduct, setImageModalProduct] = useState<Product | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
+    return (localStorage.getItem('bajaj_products_view_mode') as any) || 'table';
+  });
+  const [gridCols, setGridCols] = useState<number>(() => {
+    return Number(localStorage.getItem('bajaj_products_grid_cols')) || 3;
+  });
 
   // Form state
   const [name, setName] = useState('');
@@ -206,11 +214,12 @@ export const AdminProductsPage: React.FC = () => {
 
   const handleImageUpload = async (file: File) => {
     if (!imageModalProduct) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('is_primary', 'false');
-
     try {
+      const compressed = await compressImageForMobile(file);
+      const formData = new FormData();
+      formData.append('file', compressed);
+      formData.append('is_primary', 'false');
+
       await apiRequest(`/admin/products/${imageModalProduct.id}/images`, {
         method: 'POST',
         body: formData,
@@ -309,9 +318,102 @@ export const AdminProductsPage: React.FC = () => {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+
+        {/* Column & View Layout Controls */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 ml-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('table');
+              localStorage.setItem('bajaj_products_view_mode', 'table');
+            }}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${viewMode === 'table' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            Table
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode('grid');
+              localStorage.setItem('bajaj_products_view_mode', 'grid');
+            }}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${viewMode === 'grid' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            Grid
+          </button>
+          {viewMode === 'grid' && (
+            <div className="flex items-center gap-1 pl-1 border-l border-slate-200">
+              {[1, 2, 3, 4].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => {
+                    setGridCols(num);
+                    localStorage.setItem('bajaj_products_grid_cols', String(num));
+                  }}
+                  className={`w-6 h-6 rounded-md text-[11px] font-black transition flex items-center justify-center ${gridCols === num ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-white'}`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Table */}
+      {/* Table & Grid Views */}
+      {viewMode === 'grid' ? (
+        <div className={
+          gridCols === 1 ? 'grid grid-cols-1 gap-4' :
+          gridCols === 2 ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' :
+          gridCols === 4 ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4' :
+          'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+        }>
+          {filteredProducts.map((p) => {
+            const primaryImage = p.images?.[0]?.image_url || '/uploads/demo_avon_city_001.svg';
+            return (
+              <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-100 p-1 flex-shrink-0 flex items-center justify-center">
+                    <img src={primaryImage} alt={p.name} className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-slate-900 block text-xs truncate">{p.name}</span>
+                    <span className="text-[11px] text-slate-400 block">{p.brand?.name || 'Brand'} • {p.sku}</span>
+                    <span className="text-xs font-bold text-emerald-700 block mt-0.5">₹{p.selling_price?.toLocaleString('en-IN') || 'N/A'}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                  <span className="font-semibold text-slate-500">Stock: {p.stock_quantity}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setImageModalProduct(p)}
+                      title="Manage Images"
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => openEditModal(p)}
+                      title="Edit Bicycle"
+                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p)}
+                      title="Delete Bicycle"
+                      className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -420,6 +522,7 @@ export const AdminProductsPage: React.FC = () => {
           </table>
         </div>
       </div>
+      )}
 
       {/* Create / Edit Bicycle Modal */}
       {modalOpen && (

@@ -67,6 +67,19 @@ npm install
 npm run dev
 ```
 
+### 4. Customer Authentication (Node.js + MongoDB)
+The optional customer account service runs separately from the existing FastAPI admin/store API.
+
+```powershell
+cd backend-node
+npm install
+Copy-Item .env.example .env
+# Set a unique JWT_SECRET (32+ characters) and MONGODB_URI in .env
+npm run dev
+```
+
+In another terminal, run the frontend with `npm run dev`. Vite forwards `/auth-api` to the Node service on port 4000. Customer routes are `/register`, `/login`, and `/account`. The JWT is held in a one-hour HttpOnly, SameSite=Lax cookie; production also marks it Secure. MongoDB stores bcrypt cost-12 password hashes. Set `FRONTEND_ORIGIN` to the exact frontend origin before deployment and use HTTPS. The Node service is independent from the existing Python admin authentication and database.
+
 - **Local Storefront:** [http://localhost:5173/](http://localhost:5173/)
 - **Local Admin Portal:** [http://localhost:5173/admin/login](http://localhost:5173/admin/login)
 - **Interactive Swagger Docs:** [http://127.0.0.1:8000/api/v1/docs](http://127.0.0.1:8000/api/v1/docs)

@@ -17,6 +17,11 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
+      '/auth-api': {
+        target: 'http://127.0.0.1:4000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/auth-api/, ''),
+      },
       '/uploads': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,

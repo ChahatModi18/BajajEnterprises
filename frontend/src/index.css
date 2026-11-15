@@ -51,3 +51,18 @@
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out forwards;
 }
+
+.auth-input {
+  display: block;
+  width: 100%;
+  border: 1px solid #dfe5e1;
+  border-radius: 12px;
+  background: #fff;
+  padding: 13px 14px 13px 42px;
+  color: #17231e;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.auth-input::placeholder { color: #a3aca6; }
+.auth-input:focus { border-color: #527a5e; box-shadow: 0 0 0 3px rgb(82 122 94 / 13%); }

@@ -4,6 +4,7 @@ import { SettingsProvider } from './context/SettingsContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { CustomerAuthProvider } from './context/CustomerAuthContext';
 
 // Public Components & Pages
 import { Navbar } from './components/common/Navbar';
@@ -45,6 +46,8 @@ const AdminBulkCataloguesPage = lazyNamed(() => import('./admin/pages/AdminBulkC
 const AdminFeedbackPage = lazyNamed(() => import('./admin/pages/AdminFeedbackPage'), 'AdminFeedbackPage');
 const AdminSchemesPage = lazyNamed(() => import('./pages/admin/AdminSchemesPage'), 'AdminSchemesPage');
 const AdminSettingsPage = lazyNamed(() => import('./pages/admin/AdminSettingsPage'), 'AdminSettingsPage');
+const CustomerAuthPage = lazyNamed(() => import('./pages/CustomerAuthPage'), 'CustomerAuthPage');
+const CustomerAccountPage = lazyNamed(() => import('./pages/CustomerAccountPage'), 'CustomerAccountPage');
 
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
@@ -74,11 +77,15 @@ export function App() {
         <ScrollToTop />
         <SettingsProvider>
           <AuthProvider>
+            <CustomerAuthProvider>
             <HelpProvider>
               <CartProvider>
                 <WishlistProvider>
                   <React.Suspense fallback={<div className="p-8 text-center text-slate-500" role="status">Loading page…</div>}>
                   <Routes>
+                    <Route path="/login" element={<CustomerAuthPage mode="login" />} />
+                    <Route path="/register" element={<CustomerAuthPage mode="register" />} />
+                    <Route path="/account" element={<CustomerAccountPage />} />
                     {/* Admin Auth Route */}
                     <Route path="/admin/login" element={<AdminLoginPage />} />
 
@@ -143,6 +150,7 @@ export function App() {
                 </WishlistProvider>
               </CartProvider>
             </HelpProvider>
+            </CustomerAuthProvider>
           </AuthProvider>
         </SettingsProvider>
       </BrowserRouter>

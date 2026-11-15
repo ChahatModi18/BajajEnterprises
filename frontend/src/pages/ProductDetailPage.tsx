@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Heart, ShoppingBag, MessageSquare, Share2, 
-  ShieldCheck, MapPin, Truck, Check, ArrowLeft, AlertCircle 
+  ShieldCheck, MapPin, Truck, Check, ArrowLeft, AlertCircle, Bell 
 } from 'lucide-react';
 import { Product } from '../types';
 import { apiRequest } from '../utils/api';
@@ -10,6 +10,7 @@ import { ImageGallery } from '../components/product/ImageGallery';
 import { DynamicSpecsTable } from '../components/product/DynamicSpecsTable';
 import { ProductCard } from '../components/product/ProductCard';
 import { QuickEnquiryModal } from '../components/modals/QuickEnquiryModal';
+import { NotifyMeModal } from '../components/modals/NotifyMeModal';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useSettings } from '../context/SettingsContext';
@@ -25,6 +26,7 @@ export const ProductDetailPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [enquiryModalOpen, setEnquiryModalOpen] = useState(false);
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [addedToast, setAddedToast] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
 
@@ -188,12 +190,12 @@ export const ProductDetailPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Stock / Availability Status */}
+          {/* Stock / Availability Status (Never display inventory numbers to customers) */}
           <div className="flex items-center gap-2 text-xs">
             <span className="font-semibold text-slate-500">Availability:</span>
-            {product.availability_status === 'OUT_OF_STOCK' ? (
+            {product.availability_status === 'OUT_OF_STOCK' || product.stock_quantity <= 0 ? (
               <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 font-bold">
-                Currently Out of Stock
+                Currently Out of Stock (स्टॉक समाप्त)
               </span>
             ) : product.availability_status === 'ON_ENQUIRY' ? (
               <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold">
@@ -202,76 +204,108 @@ export const ProductDetailPage: React.FC = () => {
             ) : (
               <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center gap-1">
                 <Check className="w-3.5 h-3.5" />
-                <span>In Stock ({product.stock_quantity} available)</span>
+                <span>In Stock (स्टॉक में उपलब्ध)</span>
               </span>
             )}
           </div>
 
           {/* Actions: Add to Cart & Quick Enquire */}
           <div className="space-y-3 pt-2">
-            <div className="flex items-center gap-3">
-              {/* Quantity Selector */}
-              <div className="flex items-center border border-slate-200 rounded-xl bg-white overflow-hidden">
+            {product.availability_status === 'OUT_OF_STOCK' || product.stock_quantity <= 0 ? (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-2.5 text-slate-600 hover:bg-slate-100 font-bold"
+                  onClick={() => setNotifyModalOpen(true)}
+                  className="flex-1 py-3 px-6 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition active:scale-95"
                 >
-                  -
+                  <Bell className="w-5 h-5" />
+                  <span>Notify Me When Available (स्टॉक आने पर सूचित करें)</span>
                 </button>
-                <span className="px-3 py-2.5 text-sm font-bold text-slate-800 min-w-[2.5rem] text-center">
-                  {quantity}
-                </span>
                 <button
                   type="button"
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="px-3 py-2.5 text-slate-600 hover:bg-slate-100 font-bold"
+                  onClick={() => setEnquiryModalOpen(true)}
+                  className="py-3 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition"
                 >
-                  +
+                  <MessageSquare className="w-4 h-4 text-emerald-600" />
+                  <span>Ask Showroom</span>
+                </button>
+                {/* Wishlist Button */}
+                <button
+                  onClick={() => toggleWishlist(product)}
+                  aria-label="Save to Wishlist"
+                  className={`p-3 rounded-xl border transition ${
+                    isFavorited
+                      ? 'bg-rose-50 border-rose-200 text-rose-600'
+                      : 'bg-white border-slate-200 text-slate-600 hover:text-rose-600'
+                  }`}
+                >
+                  <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
                 </button>
               </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                {/* Quantity Selector */}
+                <div className="flex items-center border border-slate-200 rounded-xl bg-white overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="px-3 py-2.5 text-slate-600 hover:bg-slate-100 font-bold"
+                  >
+                    -
+                  </button>
+                  <span className="px-3 py-2.5 text-sm font-bold text-slate-800 min-w-[2.5rem] text-center">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="px-3 py-2.5 text-slate-600 hover:bg-slate-100 font-bold"
+                  >
+                    +
+                  </button>
+                </div>
 
-              {/* Add to Cart Button */}
-              <button
-                onClick={handleAddToCart}
-                disabled={product.availability_status === 'OUT_OF_STOCK'}
-                className="flex-1 py-3 px-6 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition active:scale-95"
-              >
-                {addedToast ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Added to Cart!</span>
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Add to Cart</span>
-                  </>
-                )}
-              </button>
+                {/* Add to Cart Button */}
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 py-3 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition active:scale-95"
+                >
+                  {addedToast ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Added to Cart!</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Add to Cart</span>
+                    </>
+                  )}
+                </button>
 
-              {/* Wishlist Button */}
-              <button
-                onClick={() => toggleWishlist(product)}
-                aria-label="Save to Wishlist"
-                className={`p-3 rounded-xl border transition ${
-                  isFavorited
-                    ? 'bg-rose-50 border-rose-200 text-rose-600'
-                    : 'bg-white border-slate-200 text-slate-600 hover:text-rose-600'
-                }`}
-              >
-                <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
-              </button>
+                {/* Wishlist Button */}
+                <button
+                  onClick={() => toggleWishlist(product)}
+                  aria-label="Save to Wishlist"
+                  className={`p-3 rounded-xl border transition ${
+                    isFavorited
+                      ? 'bg-rose-50 border-rose-200 text-rose-600'
+                      : 'bg-white border-slate-200 text-slate-600 hover:text-rose-600'
+                  }`}
+                >
+                  <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
+                </button>
 
-              {/* Share Button */}
-              <button
-                onClick={handleShare}
-                aria-label="Share product"
-                className="p-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-emerald-600 transition"
-              >
-                <Share2 className="w-5 h-5" />
-              </button>
-            </div>
+                {/* Share Button */}
+                <button
+                  onClick={handleShare}
+                  aria-label="Share product"
+                  className="p-3 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-emerald-600 transition"
+                >
+                  <Share2 className="w-5 h-5" />
+                </button>
+              </div>
+            )}
 
             {/* Direct Enquiry Button */}
             <button
@@ -356,6 +390,11 @@ export const ProductDetailPage: React.FC = () => {
         product={product}
         isOpen={enquiryModalOpen}
         onClose={() => setEnquiryModalOpen(false)}
+      />
+      <NotifyMeModal
+        product={product}
+        isOpen={notifyModalOpen}
+        onClose={() => setNotifyModalOpen(false)}
       />
     </div>
   );

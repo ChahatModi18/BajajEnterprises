@@ -11,7 +11,25 @@ import {
   fallbackFeedbacks, 
   fallbackCatalogueBatches 
 } from '../data/fallbackData';
+import { fileToDataUrl } from './imageUtils';
 
+export function getLocalFallbackProducts() {
+  const raw = typeof window !== 'undefined' ? localStorage.getItem('bajaj_custom_products') : null;
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {}
+  }
+  return [...fallbackProducts];
+}
+
+export function saveLocalFallbackProducts(products: any[]) {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('bajaj_custom_products', JSON.stringify(products));
+    } catch {}
+  }
+}
 const API_BASE = import.meta.env.VITE_API_URL 
   ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/v1` 
   : '/api/v1';
@@ -334,23 +352,124 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
 
   // Handle Image & Catalogue Photo Uploads in Studio
   if (cleanEndpoint.includes('/media/upload') || cleanEndpoint.includes('/upload')) {
+    let imageUrl = '/uploads/demo_avon_city_001.svg';
+    if (typeof window !== 'undefined' && (window as any).__lastUploadedImageDataUrl) {
+      imageUrl = (window as any).__lastUploadedImageDataUrl;
+    }
     return {
       id: Date.now(),
-      image_url: '/uploads/demo_avon_city_001.svg',
-      thumbnail_url: '/uploads/demo_avon_city_001.svg',
+      image_url: imageUrl,
+      thumbnail_url: imageUrl,
       is_primary: true,
       sort_order: 1,
     } as unknown as T;
   }
 
-  // Handle Products List & Search (Supports both public /products and /admin/products)
+  // Handle Product Images (Upload, Make Primary, Delete)
+  if (cleanEndpoint.includes('/images')) {
+    const match = cleanEndpoint.match(/\/products\/(\d+)\/images/);
+    const prodId = match ? Number(match[1]) : 0;
+    const products = getLocalFallbackProducts();
+    const prodIndex = products.findIndex((p: any) => p.id === prodId);
+
+    // Primary Image Toggle: PATCH /products/:id/images/:imageId/primary
+    if (cleanEndpoint.includes('/primary') && method === 'PATCH') {
+      const imgMatch = cleanEndpoint.match(/\/images\/(\d+)\/primary/);
+      const imgId = imgMatch ? Number(imgMatch[1]) : 0;
+      if (prodIndex >= 0 && products[prodIndex].images) {
+        products[prodIndex].images = products[prodIndex].images.map((img: any) => ({
+          ...img,
+          is_primary: img.id === imgId,
+        }));
+        saveLocalFallbackProducts(products);
+      }
+      return { message: 'Primary image updated' } as unknown as T;
+    }
+
+    // Image Deletion: DELETE /products/:id/images/:imageId
+    if (method === 'DELETE') {
+      const imgMatch = cleanEndpoint.match(/\/images\/(\d+)/);
+      const imgId = imgMatch ? Number(imgMatch[1]) : 0;
+      if (prodIndex >= 0 && products[prodIndex].images) {
+        products[prodIndex].images = products[prodIndex].images.filter((img: any) => img.id !== imgId);
+        saveLocalFallbackProducts(products);
+      }
+      return { message: 'Image deleted' } as unknown as T;
+    }
+
+    // Image Upload: POST /products/:id/images
+    if (method === 'POST') {
+      let imageUrl = '/uploads/demo_avon_city_001.svg';
+      if (typeof window !== 'undefined' && (window as any).__lastUploadedImageDataUrl) {
+        imageUrl = (window as any).__lastUploadedImageDataUrl;
+      }
+      const newImage = {
+        id: Date.now(),
+        product_id: prodId,
+        image_url: imageUrl,
+        thumbnail_url: imageUrl,
+        is_primary: true,
+        sort_order: 1,
+      };
+
+      if (prodIndex >= 0) {
+        const prod = products[prodIndex];
+        const existingImages = (prod.images || []).map((img: any) => ({
+          ...img,
+          is_primary: false,
+        }));
+        prod.images = [newImage, ...existingImages];
+        saveLocalFallbackProducts(products);
+      }
+
+      return newImage as unknown as T;
+    }
+  }
+
+  // Handle Products List & Search & Create
   if (cleanEndpoint === '/products') {
+    const products = getLocalFallbackProducts();
+
+    if (method === 'POST') {
+      let bodyData: any = {};
+      try {
+        if (typeof options.body === 'string') bodyData = JSON.parse(options.body);
+      } catch {}
+
+      const newProd = {
+        id: Date.now(),
+        name: bodyData.name || 'New Bicycle',
+        slug: (bodyData.name || 'new-bicycle').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        sku: bodyData.sku || ('BE-' + Date.now().toString().slice(-5)),
+        brand_id: Number(bodyData.brand_id) || 1,
+        category_id: Number(bodyData.category_id) || 1,
+        selling_price: bodyData.selling_price || null,
+        mrp: bodyData.mrp || null,
+        stock_quantity: bodyData.stock_quantity ?? 5,
+        availability_status: bodyData.availability_status || 'IN_STOCK',
+        description: bodyData.description || '',
+        warranty_info: bodyData.warranty_info || '1 Year Manufacturer Frame Warranty',
+        delivery_info: bodyData.delivery_info || 'Store pickup at Bajaj Enterprises, Kote Gate, Bikaner.',
+        is_published: true,
+        is_featured: bodyData.is_featured ?? false,
+        is_new_arrival: bodyData.is_new_arrival ?? true,
+        attributes: bodyData.attributes || [],
+        images: [],
+        brand: fallbackBrands.find((b: any) => b.id === Number(bodyData.brand_id)) || fallbackBrands[0],
+        category: fallbackCategories.find((c: any) => c.id === Number(bodyData.category_id)) || fallbackCategories[0],
+      };
+
+      products.unshift(newProd);
+      saveLocalFallbackProducts(products);
+      return newProd as unknown as T;
+    }
+
     const urlParams = new URLSearchParams(endpoint.includes('?') ? endpoint.split('?')[1] : '');
     const brandSlug = urlParams.get('brand_slug') || urlParams.get('brand');
     const categorySlug = urlParams.get('category_slug') || urlParams.get('category');
     const search = (urlParams.get('search') || '').toLowerCase();
 
-    let filtered = [...fallbackProducts];
+    let filtered = [...products];
     if (brandSlug) {
       filtered = filtered.filter(p => p.brand?.name?.toLowerCase().includes(brandSlug.toLowerCase()) || p.brand_id?.toString() === brandSlug);
     }
@@ -377,7 +496,34 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
   // Handle Single Product by Slug or ID
   if (cleanEndpoint.startsWith('/products/')) {
     const identifier = cleanEndpoint.replace('/products/', '');
-    const product = fallbackProducts.find(p => p.slug === identifier || p.id?.toString() === identifier) || fallbackProducts[0];
+    const products = getLocalFallbackProducts();
+    const prodIndex = products.findIndex((p: any) => p.slug === identifier || p.id?.toString() === identifier);
+
+    if (method === 'PUT' || method === 'PATCH') {
+      let bodyData: any = {};
+      try {
+        if (typeof options.body === 'string') bodyData = JSON.parse(options.body);
+      } catch {}
+
+      if (prodIndex >= 0) {
+        products[prodIndex] = {
+          ...products[prodIndex],
+          ...bodyData,
+          brand: fallbackBrands.find((b: any) => b.id === Number(bodyData.brand_id || products[prodIndex].brand_id)) || products[prodIndex].brand,
+          category: fallbackCategories.find((c: any) => c.id === Number(bodyData.category_id || products[prodIndex].category_id)) || products[prodIndex].category,
+        };
+        saveLocalFallbackProducts(products);
+        return products[prodIndex] as unknown as T;
+      }
+    }
+
+    if (method === 'DELETE' && prodIndex >= 0) {
+      products.splice(prodIndex, 1);
+      saveLocalFallbackProducts(products);
+      return { message: 'Product deleted' } as unknown as T;
+    }
+
+    const product = prodIndex >= 0 ? products[prodIndex] : (products[0] || fallbackProducts[0]);
     return product as unknown as T;
   }
 
@@ -393,6 +539,17 @@ export async function apiRequest<T = any>(
 
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
+  }
+
+  // If uploading a file via FormData, cache data URL for fallback persistence
+  if (options.body instanceof FormData && typeof window !== 'undefined') {
+    const rawFile = options.body.get('file');
+    if (rawFile instanceof File) {
+      try {
+        const dataUrl = await fileToDataUrl(rawFile);
+        (window as any).__lastUploadedImageDataUrl = dataUrl;
+      } catch {}
+    }
   }
 
   if (token && !headers.has('Authorization')) {

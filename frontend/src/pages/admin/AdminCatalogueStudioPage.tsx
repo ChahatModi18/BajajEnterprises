@@ -11,6 +11,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useHelp } from '../../context/HelpContext';
 import { CameraCaptureModal } from '../../admin/components/CameraCaptureModal';
+import { compressImageForMobile } from '../../utils/imageUtils';
+import { LayoutGrid, Grid } from 'lucide-react';
 import { UploadCloud, FileSpreadsheet, FileText } from 'lucide-react';
 
 export const AdminCatalogueStudioPage: React.FC = () => {
@@ -39,6 +41,14 @@ export const AdminCatalogueStudioPage: React.FC = () => {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [bulkTitle, setBulkTitle] = useState('');
   const [bulkTag, setBulkTag] = useState('Wholesale Price List');
+  // Grid and Form Column Customization
+  const [gridCols, setGridCols] = useState<number>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('bajaj_catalogue_grid_cols') : null;
+    return saved ? Number(saved) : 3;
+  });
+  const [formCols, setFormCols] = useState<number>(2);
+  const [customColumns, setCustomColumns] = useState<Array<{ id: string; name: string; value: string }>>([]);
+
   // Quick Photo Upload Modal
   const [photoModalProduct, setPhotoModalProduct] = useState<Product | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -119,27 +129,38 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     }
   };
 
-  // Upload Photo to existing bicycle
+  // Custom Column Management Handlers
+  const handleAddCustomColumn = () => {
+    setCustomColumns(prev => [
+      ...prev,
+      { id: `col-${Date.now()}-${Math.random()}`, name: '', value: '' }
+    ]);
+  };
+
+  const handleUpdateCustomColumn = (id: string, field: 'name' | 'value', val: string) => {
+    setCustomColumns(prev => prev.map(c => c.id === id ? { ...c, [field]: val } : c));
+  };
+
+  const handleRemoveCustomColumn = (id: string) => {
+    setCustomColumns(prev => prev.filter(c => c.id !== id));
+  };
+
+  // Upload Photo to existing bicycle (with mobile compression & apiRequest)
   const handlePhotoUpload = async (file: File) => {
     if (!photoModalProduct) return;
     setUploadingPhoto(true);
     try {
+      const compressed = await compressImageForMobile(file);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressed);
       formData.append('is_primary', 'true');
       formData.append('alt_text', `${photoModalProduct.name} photograph`);
 
-      const token = localStorage.getItem('bajaj_admin_token');
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/admin/products/${photoModalProduct.id}/images`, {
+      await apiRequest(`/admin/products/${photoModalProduct.id}/images`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         body: formData,
       });
 
-      if (!res.ok) throw new Error('Upload failed');
-      
       const updated = await apiRequest<Product>(`/admin/products/${photoModalProduct.id}`);
       setPhotoModalProduct(updated);
       setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
@@ -164,8 +185,9 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     setStockQuantity(5);
     setAvailabilityStatus('IN_STOCK');
     setDescription('');
-    setWarrantyInfo('1 Year Frame Warranty');
+    setWarrantyInfo('1 Year Manufacturer Frame Warranty');
     setDynamicValues({});
+    setCustomColumns([]);
     setStagedFiles([]);
     setStagedPreviews([]);
     setEditModalOpen(true);
@@ -186,10 +208,22 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     setWarrantyInfo(p.warranty_info || '');
     
     const attrMap: Record<number, any> = {};
-    p.attributes?.forEach((val) => {
-      attrMap[val.attribute_id] = val.value;
+    const customList: Array<{ id: string; name: string; value: string }> = [];
+    const knownAttrIds = new Set(attributes.map(a => a.id));
+
+    p.attributes?.forEach((val, idx) => {
+      if (knownAttrIds.has(val.attribute_id) && val.attribute_id < 1000) {
+        attrMap[val.attribute_id] = val.value;
+      } else {
+        customList.push({
+          id: `col-${idx}-${Date.now()}`,
+          name: val.attribute_name || val.attribute_key || 'Specification',
+          value: val.value || '',
+        });
+      }
     });
     setDynamicValues(attrMap);
+    setCustomColumns(customList);
     setStagedFiles([]);
     setStagedPreviews([]);
     setEditModalOpen(true);
@@ -222,6 +256,24 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     setSaving(true);
 
     try {
+      const standardAttrs = Object.entries(dynamicValues)
+        .filter(([_, val]) => val !== '' && val !== null && val !== undefined)
+        .map(([attrId, val]) => ({
+          attribute_id: Number(attrId),
+          value: String(val),
+        }));
+
+      const dynamicCustomAttrs = customColumns
+        .filter(c => c.name.trim() && c.value.trim())
+        .map((c, idx) => ({
+          attribute_id: 1000 + idx,
+          attribute_name: c.name.trim(),
+          attribute_key: c.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+          value: c.value.trim(),
+          show_in_specs: true,
+          show_in_card: true,
+        }));
+
       const payload: any = {
         name,
         sku,
@@ -232,17 +284,12 @@ export const AdminCatalogueStudioPage: React.FC = () => {
         stock_quantity: Number(stockQuantity),
         availability_status: availabilityStatus,
         description,
-        warranty_info: warrantyInfo,
+        warranty_info: warrantyInfo || '1 Year Manufacturer Frame Warranty',
         delivery_info: 'Store pickup at Bajaj Enterprises, Kote Gate, Bikaner.',
         is_published: true,
         is_featured: false,
         is_new_arrival: true,
-        attributes: Object.entries(dynamicValues)
-          .filter(([_, val]) => val !== '' && val !== null && val !== undefined)
-          .map(([attrId, val]) => ({
-            attribute_id: Number(attrId),
-            value: String(val),
-          })),
+        attributes: [...standardAttrs, ...dynamicCustomAttrs],
       };
 
       let savedProduct: Product;
@@ -258,21 +305,18 @@ export const AdminCatalogueStudioPage: React.FC = () => {
         });
       }
 
-      // If files were staged, upload them to the saved bicycle now!
+      // If files were staged, upload them to the saved bicycle now with mobile compression!
       if (stagedFiles.length > 0) {
-        const token = localStorage.getItem('bajaj_admin_token');
         for (let i = 0; i < stagedFiles.length; i++) {
           const file = stagedFiles[i];
+          const compressed = await compressImageForMobile(file);
           const formData = new FormData();
-          formData.append('file', file);
+          formData.append('file', compressed);
           formData.append('is_primary', i === 0 ? 'true' : 'false');
           formData.append('alt_text', `${name} photo ${i + 1}`);
 
-          await fetch(`http://127.0.0.1:8000/api/v1/admin/products/${savedProduct.id}/images`, {
+          await apiRequest(`/admin/products/${savedProduct.id}/images`, {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
             body: formData,
           });
         }
@@ -434,8 +478,36 @@ export const AdminCatalogueStudioPage: React.FC = () => {
           ))}
         </select>
 
+        {/* Number of Columns Selector */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <span className="text-[11px] font-bold text-slate-500 px-2 flex items-center gap-1">
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Columns:</span>
+          </span>
+          {[1, 2, 3, 4, 6].map((num) => (
+            <button
+              key={num}
+              type="button"
+              onClick={() => {
+                setGridCols(num);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('bajaj_catalogue_grid_cols', String(num));
+                }
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-black transition ${
+                gridCols === num
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-white hover:text-slate-900'
+              }`}
+              title={`View catalogue in ${num} column${num > 1 ? 's' : ''}`}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+
         <span className="text-xs font-bold text-slate-500 self-center px-2">
-          {filteredProducts.length} Bicycles in Catalogue
+          {filteredProducts.length} Bicycles
         </span>
       </div>
 
@@ -476,7 +548,13 @@ export const AdminCatalogueStudioPage: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={
+          gridCols === 1 ? 'grid grid-cols-1 gap-6' :
+          gridCols === 2 ? 'grid grid-cols-1 sm:grid-cols-2 gap-6' :
+          gridCols === 4 ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4' :
+          gridCols === 6 ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3' :
+          'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+        }>
           {filteredProducts.map((product) => {
             const primaryImg = product.images?.find(i => i.is_primary)?.image_url || product.images?.[0]?.image_url;
             
@@ -763,16 +841,38 @@ export const AdminCatalogueStudioPage: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-xl font-black text-slate-900 mb-1">
-              {editingProduct ? `Edit Bicycle: ${editingProduct.name}` : 'Add New Bicycle to Catalogue'}
-            </h3>
-            <p className="text-xs text-slate-500 mb-6">
-              Enter bicycle specifications, showroom selling price, and attach photographs.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">
+                  {editingProduct ? `Edit Bicycle: ${editingProduct.name}` : 'Add New Bicycle to Catalogue'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Enter bicycle specifications, showroom selling price, custom columns, and attach photographs.
+                </p>
+              </div>
+              {/* Form Column Layout Selector */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
+                <span className="text-[10px] font-bold text-slate-500 px-1.5">Form Layout:</span>
+                <button
+                  type="button"
+                  onClick={() => setFormCols(1)}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold transition ${formCols === 1 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  1 Col
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormCols(2)}
+                  className={`px-2 py-1 rounded-lg text-xs font-bold transition ${formCols === 2 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  2 Cols
+                </button>
+              </div>
+            </div>
 
             <form onSubmit={handleSubmitProduct} className="space-y-4 text-xs">
               {/* Name & SKU */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={formCols === 1 ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     Bicycle Name / साइकिल का नाम *
@@ -802,7 +902,7 @@ export const AdminCatalogueStudioPage: React.FC = () => {
               </div>
 
               {/* Brand & Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={formCols === 1 ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 sm:grid-cols-2 gap-4'}>
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     Brand / ब्रांड (AVON, HERCULES आदि) *
@@ -912,6 +1012,67 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Dynamic Custom Columns & Specifications Section */}
+              <div className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-200/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <span className="font-bold text-slate-900 text-xs block">
+                      Custom Columns & Specifications (कस्टम कॉलम / विशेषताएं जोड़ें)
+                    </span>
+                    <span className="text-[11px] text-slate-600 block">
+                      Add and adjust custom fields for this bicycle (e.g. Carrier, Battery, Weight, Tyre Width, Suspension, Stand)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomColumn}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition self-start sm:self-auto"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Add Custom Column</span>
+                  </button>
+                </div>
+
+                {customColumns.length === 0 ? (
+                  <div className="text-center py-3 border border-dashed border-emerald-300 rounded-xl bg-white text-slate-500 text-xs">
+                    No custom columns added yet. Click <strong>+ Add Custom Column</strong> to add features like Carrier, Battery, or Weight.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {customColumns.map((col) => (
+                      <div key={col.id} className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-emerald-200 shadow-sm">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            placeholder="Column Name (e.g. Carrier, Battery)"
+                            value={col.name}
+                            onChange={(e) => handleUpdateCustomColumn(col.id, 'name', e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 font-bold text-slate-800"
+                          />
+                        </div>
+                        <div className="flex-[1.5]">
+                          <input
+                            type="text"
+                            placeholder="Value (e.g. Heavy Duty Steel Carrier Included)"
+                            value={col.value}
+                            onChange={(e) => handleUpdateCustomColumn(col.id, 'value', e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 text-slate-700"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomColumn(col.id)}
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition"
+                          title="Remove Column"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Photos Staging Box (Attach Photos Right In The Form!) */}
@@ -1132,13 +1293,15 @@ export const AdminCatalogueStudioPage: React.FC = () => {
             formData.append('file', file);
             formData.append('is_primary', 'true');
             const token = localStorage.getItem('bajaj_admin_token');
-            const res = await fetch(`/api/v1/admin/products/${cameraModalProduct.id}/images`, {
+            const compressed = await compressImageForMobile(file);
+            const compFormData = new FormData();
+            compFormData.append('file', compressed);
+            compFormData.append('is_primary', 'true');
+            const updated = await apiRequest(`/admin/products/${cameraModalProduct.id}/images`, {
               method: 'POST',
-              headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-              body: formData,
+              body: compFormData,
             });
-            if (res.ok) {
-              const updated = await res.json();
+            if (updated) {
               setProducts(prev => prev.map(p => p.id === cameraModalProduct.id ? {
                 ...p,
                 images: [updated, ...(p.images || []).filter(img => img.id !== updated.id)]

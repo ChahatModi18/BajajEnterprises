@@ -328,6 +328,8 @@ export const fallbackProducts: Product[] = [
     is_archived: false,
     sort_order: 3,
     description: 'Engineered for speed, fitness, and effortless daily commuting. Sleek geometry, V-brakes with crisp stopping power, and lightweight aluminum frame.',
+    warranty_info: '1 Year Manufacturer Frame Warranty',
+    delivery_info: 'Ready assembled pickup at Kote Gate showroom or local delivery',
     brand: fallbackBrands[1],
     category: fallbackCategories[1],
     images: [
@@ -366,6 +368,8 @@ export const fallbackProducts: Product[] = [
     is_archived: false,
     sort_order: 4,
     description: 'Perfect for children aged 6 to 9 years learning to ride. Features anti-skid pedals, soft grip handles, rear carrier, and adjustable saddle height.',
+    warranty_info: '1 Year Manufacturer Frame Warranty',
+    delivery_info: 'Ready assembled pickup at Kote Gate showroom or local delivery',
     brand: fallbackBrands[0],
     category: fallbackCategories[3],
     images: [
@@ -404,6 +408,8 @@ export const fallbackProducts: Product[] = [
     is_archived: false,
     sort_order: 5,
     description: 'The backbone of dependable Indian cycling. Built to withstand rough usage and heavy carrying with double-rod frame geometry and heavy-duty spoked wheels.',
+    warranty_info: '1 Year Manufacturer Frame Warranty',
+    delivery_info: 'Ready assembled pickup at Kote Gate showroom or local delivery',
     brand: fallbackBrands[0],
     category: fallbackCategories[0],
     images: [
@@ -442,6 +448,8 @@ export const fallbackProducts: Product[] = [
     is_archived: false,
     sort_order: 6,
     description: 'Roll over rocks and obstacles with maximum momentum. 29er geometry provides outstanding stability and cruise speed for tall riders.',
+    warranty_info: '1 Year Manufacturer Frame Warranty',
+    delivery_info: 'Ready assembled pickup at Kote Gate showroom or local delivery',
     brand: fallbackBrands[2],
     category: fallbackCategories[2],
     images: [

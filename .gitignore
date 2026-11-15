@@ -19,4 +19,5 @@ backend/uploads/*
 # Environment secrets
 .env
 backend/.env
+backend-node/.env
 .vercel/

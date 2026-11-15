@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, ShoppingBag, MessageSquare, Check, Eye } from 'lucide-react';
+import { Heart, ShoppingBag, MessageSquare, Check, Eye, Bell } from 'lucide-react';
+import { NotifyMeModal } from '../modals/NotifyMeModal';
 import { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -14,6 +15,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickEnquir
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const [addedAnimation, setAddedAnimation] = useState(false);
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
 
   const isFavorited = isInWishlist(product.id);
   const primaryImg = product.images?.find(i => i.is_primary)?.image_url 
@@ -70,21 +72,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickEnquir
           className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        {/* Availability Badge */}
+        {/* Availability Badge (Shows In Stock / Out of Stock, never count) */}
         <div className="absolute bottom-2 left-2">
-          {product.availability_status === 'OUT_OF_STOCK' ? (
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-white text-[10px] font-semibold">
+          {product.availability_status === 'OUT_OF_STOCK' || product.stock_quantity <= 0 ? (
+            <span className="px-2.5 py-0.5 rounded-full bg-rose-700 text-white text-[10px] font-bold shadow-sm">
               Out of Stock
             </span>
           ) : product.availability_status === 'ON_ENQUIRY' ? (
-            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-200">
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold border border-amber-200">
               Availability on Enquiry
             </span>
-          ) : product.stock_quantity <= 2 ? (
-            <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-800 text-[10px] font-semibold border border-orange-200">
-              Only {product.stock_quantity} left
+          ) : (
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+              In Stock
             </span>
-          ) : null}
+          )}
         </div>
       </Link>
 
@@ -144,31 +146,42 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickEnquir
             )}
           </div>
 
-          {/* Actions */}
+          {/* Actions (Add to Cart for In Stock, Notify Me for Out of Stock) */}
           <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={handleAddToCart}
-              disabled={product.availability_status === 'OUT_OF_STOCK'}
-              className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition shadow-sm ${
-                addedAnimation
-                  ? 'bg-emerald-700 text-white'
-                  : product.availability_status === 'OUT_OF_STOCK'
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white'
-              }`}
-            >
-              {addedAnimation ? (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Added!</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>Add to Cart</span>
-                </>
-              )}
-            </button>
+            {product.availability_status === 'OUT_OF_STOCK' || product.stock_quantity <= 0 ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setNotifyModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition shadow-sm bg-amber-500 hover:bg-amber-600 active:scale-95 text-white"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>Notify Me</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition shadow-sm ${
+                  addedAnimation
+                    ? 'bg-emerald-700 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white'
+                }`}
+              >
+                {addedAnimation ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Added!</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Add to Cart</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               onClick={() => onQuickEnquire ? onQuickEnquire(product) : null}
@@ -180,6 +193,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onQuickEnquir
           </div>
         </div>
       </div>
+      <NotifyMeModal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} product={product} />
     </div>
   );
 };

@@ -13,6 +13,8 @@ export const AdminBulkCataloguesPage: React.FC = () => {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [formatFilter, setFormatFilter] = useState<'all' | 'csv' | 'xlsx' | 'pdf'>('all');
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [gridCols, setGridCols] = useState<number>(3);
 
   // Upload Form State
   const [title, setTitle] = useState('');
@@ -250,6 +252,38 @@ export const AdminBulkCataloguesPage: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* View Layout & Column Selection */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 ml-auto">
+          <button
+            type="button"
+            onClick={() => setViewMode('table')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${viewMode === 'table' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            Table
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('grid')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition ${viewMode === 'grid' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            Grid
+          </button>
+          {viewMode === 'grid' && (
+            <div className="flex items-center gap-1 pl-1 border-l border-slate-200">
+              {[1, 2, 3, 4].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => setGridCols(num)}
+                  className={`w-6 h-6 rounded-md text-[11px] font-black transition flex items-center justify-center ${gridCols === num ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-white'}`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Batches Table / List */}
@@ -264,6 +298,55 @@ export const AdminBulkCataloguesPage: React.FC = () => {
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             Upload manufacturer specification PDFs, wholesale price spreadsheets, or seasonal inventory files using the button above.
           </p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className={
+          gridCols === 1 ? 'grid grid-cols-1 gap-4' :
+          gridCols === 2 ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' :
+          gridCols === 4 ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4' :
+          'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
+        }>
+          {filtered.map((b) => (
+            <div key={b.id} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600 border border-slate-100 flex-shrink-0">
+                  {b.file_type === 'csv' || b.file_type === 'xlsx' ? <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> : <FileText className="w-5 h-5 text-rose-600" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-slate-900 text-xs truncate">{b.title}</h4>
+                  <span className="text-[10px] text-slate-400 block truncate">{b.filename} • {formatFileSize(b.file_size_bytes)}</span>
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">{b.category_tag}</span>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="font-bold text-emerald-700">{b.valid_rows} Items</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleOpenPreview(b)}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    title="Preview"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                  <a
+                    href={b.file_url}
+                    download={b.filename}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    title="Download"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+                  <button
+                    onClick={() => handleDeleteBatch(b.id)}
+                    className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">

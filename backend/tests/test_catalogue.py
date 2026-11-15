@@ -30,7 +30,7 @@ def test_get_products_list():
     assert "DEMO-HERCULES-001" in skus
 
 def test_filter_products_by_brand():
-    response = client.get("/api/v1/products?brand_slug=avon")
+    response = client.get("/api/v1/products?brand_slug=avon&page_size=100")
     assert response.status_code == 200
     data = response.json()
     assert any(p["sku"] == "DEMO-AVON-001" for p in data["items"])

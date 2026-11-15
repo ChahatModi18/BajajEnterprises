@@ -11,6 +11,9 @@ export const AdminFeedbackPage: React.FC = () => {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterRating, setFilterRating] = useState<number | null>(null);
+  const [gridCols, setGridCols] = useState<number>(() => {
+    return Number(localStorage.getItem('bajaj_feedback_grid_cols')) || 1;
+  });
   const [search, setSearch] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -216,6 +219,24 @@ export const AdminFeedbackPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Column Grid Selector */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 ml-auto">
+          <span className="text-[11px] font-bold text-slate-500 px-2">Columns:</span>
+          {[1, 2, 3].map((num) => (
+            <button
+              key={num}
+              type="button"
+              onClick={() => {
+                setGridCols(num);
+                localStorage.setItem('bajaj_feedback_grid_cols', String(num));
+              }}
+              className={`w-7 h-7 rounded-lg text-xs font-black transition flex items-center justify-center ${gridCols === num ? 'bg-amber-500 text-slate-950 font-black shadow-sm' : 'text-slate-600 hover:bg-white'}`}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Reviews Table / Cards */}
@@ -230,7 +251,11 @@ export const AdminFeedbackPage: React.FC = () => {
           <p className="text-xs text-slate-500">Try adjusting your star filter or search query.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className={
+          gridCols === 1 ? 'space-y-4' :
+          gridCols === 2 ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' :
+          'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+        }>
           {filtered.map((rev) => (
             <div
               key={rev.id}
