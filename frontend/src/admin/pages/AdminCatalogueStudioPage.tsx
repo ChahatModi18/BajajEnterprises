@@ -14,6 +14,7 @@ import { CameraCaptureModal } from '../../admin/components/CameraCaptureModal';
 import { compressImageForMobile } from '../../utils/imageUtils';
 import { LayoutGrid, Grid } from 'lucide-react';
 import { UploadCloud, FileSpreadsheet, FileText } from 'lucide-react';
+import { parseGoogleFormResponseText } from '../../utils/googleFormParser';
 
 export const AdminCatalogueStudioPage: React.FC = () => {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
@@ -47,7 +48,15 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     return saved ? Number(saved) : 3;
   });
   const [formCols, setFormCols] = useState<number>(2);
-  const [customColumns, setCustomColumns] = useState<Array<{ id: string; name: string; value: string }>>([]);
+  // Unified Specification Boxes (Fully editable labels, values, deletable, and addable)
+  interface SpecBoxItem {
+    id: string;
+    label: string;
+    value: string;
+    options?: string[];
+    attribute_id?: number;
+  }
+  const [specBoxes, setSpecBoxes] = useState<SpecBoxItem[]>([]);
 
   // Quick Photo Upload Modal
   const [photoModalProduct, setPhotoModalProduct] = useState<Product | null>(null);
@@ -71,6 +80,10 @@ export const AdminCatalogueStudioPage: React.FC = () => {
   // Staged photos for creation
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stagedPreviews, setStagedPreviews] = useState<string[]>([]);
+
+  // Google Form Response Ingestion State
+  const [googleFormModalOpen, setGoogleFormModalOpen] = useState(false);
+  const [googleFormRawText, setGoogleFormRawText] = useState('');
   
   const [saving, setSaving] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
@@ -129,20 +142,117 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     }
   };
 
-  // Custom Column Management Handlers
-  const handleAddCustomColumn = () => {
-    setCustomColumns(prev => [
+  // Unified Specification Box Handlers (Rename, Update, Delete, Add, Deduplicate)
+  const handleRenameSpecLabel = (id: string, newLabel: string) => {
+    setSpecBoxes(prev => prev.map(b => b.id === id ? { ...b, label: newLabel } : b));
+  };
+
+  const handleUpdateSpecValue = (id: string, newVal: string) => {
+    setSpecBoxes(prev => prev.map(b => b.id === id ? { ...b, value: newVal } : b));
+  };
+
+  const handleDeleteSpecBox = (id: string) => {
+    setSpecBoxes(prev => prev.filter(b => b.id !== id));
+  };
+
+  const handleAddSpecBox = () => {
+    setSpecBoxes(prev => [
       ...prev,
-      { id: `col-${Date.now()}-${Math.random()}`, name: '', value: '' }
+      {
+        id: `spec-${Date.now()}-${Math.random().toString().slice(2, 6)}`,
+        label: 'New Specification',
+        value: '',
+      }
     ]);
   };
 
-  const handleUpdateCustomColumn = (id: string, field: 'name' | 'value', val: string) => {
-    setCustomColumns(prev => prev.map(c => c.id === id ? { ...c, [field]: val } : c));
+  const handleCleanDuplicates = () => {
+    const seen = new Set<string>();
+    setSpecBoxes(prev => prev.filter(b => {
+      const k = b.label.toLowerCase().trim();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }));
+    setFeedbackMsg('Duplicate specification boxes cleaned!');
+    setTimeout(() => setFeedbackMsg(null), 2500);
   };
 
-  const handleRemoveCustomColumn = (id: string) => {
-    setCustomColumns(prev => prev.filter(c => c.id !== id));
+  // Google Form Response Ingestion Handler
+  const handleApplyGoogleForm = () => {
+    const parsed = parseGoogleFormResponseText(googleFormRawText);
+    if (!parsed) {
+      alert('Could not detect bicycle details from pasted text. Please paste valid form text.');
+      return;
+    }
+    if (parsed.name) setName(parsed.name);
+    if (parsed.sellingPrice) setSellingPrice(parsed.sellingPrice);
+    if (parsed.mrp) setMrp(parsed.mrp);
+    if (parsed.stockQuantity) setStockQuantity(parsed.stockQuantity);
+    if (parsed.warrantyInfo) setWarrantyInfo(parsed.warrantyInfo);
+    if (parsed.description) setDescription(parsed.description);
+
+    if (parsed.brandName && brands.length > 0) {
+      const bMatch = brands.find(b => b.name.toLowerCase().includes(parsed.brandName!.toLowerCase()));
+      if (bMatch) setBrandId(bMatch.id);
+    }
+    if (parsed.categoryName && categories.length > 0) {
+      const cMatch = categories.find(c => c.name.toLowerCase().includes(parsed.categoryName!.toLowerCase()));
+      if (cMatch) setCategoryId(cMatch.id);
+    }
+
+    if (parsed.specBoxes.length > 0) {
+      const newBoxes: SpecBoxItem[] = parsed.specBoxes.map((sb, idx) => ({
+        id: `gf-spec-${idx}-${Date.now()}`,
+        label: sb.label,
+        value: sb.value
+      }));
+      setSpecBoxes(prev => {
+        const merged = [...prev];
+        newBoxes.forEach(nb => {
+          const existingIdx = merged.findIndex(m => m.label.toLowerCase() === nb.label.toLowerCase());
+          if (existingIdx >= 0) {
+            merged[existingIdx].value = nb.value;
+          } else {
+            merged.push(nb);
+          }
+        });
+        return merged;
+      });
+    }
+
+    setGoogleFormModalOpen(false);
+    setGoogleFormRawText('');
+    setFeedbackMsg('Bicycle details populated from Google Form response!');
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
+  // Card Level Quick Deletion Handlers
+  const handleDeleteProduct = async (product: Product) => {
+    if (!window.confirm(`Are you sure you want to delete bicycle "${product.name}"?`)) return;
+    try {
+      await apiRequest(`/admin/products/${product.id}`, { method: 'DELETE' });
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+      setFeedbackMsg(`Bicycle "${product.name}" deleted from catalogue.`);
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Error deleting bicycle.');
+    }
+  };
+
+  const handleDeletePrimaryPhoto = async (product: Product) => {
+    const primaryImg = product.images?.find(i => i.is_primary) || product.images?.[0];
+    if (!primaryImg) return;
+    if (!window.confirm(`Delete the photograph for "${product.name}"?`)) return;
+    try {
+      await apiRequest(`/admin/products/${product.id}/images/${primaryImg.id}`, { method: 'DELETE' });
+      const updated = await apiRequest<Product>(`/admin/products/${product.id}`);
+      setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
+      setFeedbackMsg(`Photograph deleted from "${product.name}".`);
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Error deleting photograph.');
+    }
   };
 
   // Upload Photo to existing bicycle (with mobile compression & apiRequest)
@@ -187,7 +297,16 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     setDescription('');
     setWarrantyInfo('1 Year Manufacturer Frame Warranty');
     setDynamicValues({});
-    setCustomColumns([]);
+    setSpecBoxes([
+      { id: 'sb-1', label: 'Wheel Size', value: '26 inches', options: ['20 inches', '24 inches', '26 inches', '27.5 inches', '29 inches', '700C'] },
+      { id: 'sb-2', label: 'Gear Count', value: 'Single Speed', options: ['Single Speed', '7 Speed', '18 Speed', '21 Speed', '24 Speed'] },
+      { id: 'sb-3', label: 'Brake Type', value: 'V-Brakes', options: ['V-Brakes', 'Mechanical Disc Brakes', 'Hydraulic Disc Brakes', 'Caliper Brakes'] },
+      { id: 'sb-4', label: 'Frame Material', value: 'Steel', options: ['Steel', 'Alloy (Aluminium 6061)', 'Carbon Fibre'] },
+      { id: 'sb-5', label: 'Suspension', value: 'Rigid', options: ['Rigid', 'Front Suspension', 'Dual Suspension'] },
+      { id: 'sb-6', label: 'Frame Size', value: '18 inch', options: ['16 inch', '18 inch', '20 inch'] },
+      { id: 'sb-7', label: 'Colour', value: 'Red' },
+      { id: 'sb-8', label: 'Rider Age / Height', value: "14+ Years / 5'2\" - 5'10\"" },
+    ]);
     setStagedFiles([]);
     setStagedPreviews([]);
     setEditModalOpen(true);
@@ -207,23 +326,44 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     setDescription(p.description || '');
     setWarrantyInfo(p.warranty_info || '');
     
-    const attrMap: Record<number, any> = {};
-    const customList: Array<{ id: string; name: string; value: string }> = [];
-    const knownAttrIds = new Set(attributes.map(a => a.id));
+    const loadedBoxes: SpecBoxItem[] = [];
+    const seenLabels = new Set<string>();
 
-    p.attributes?.forEach((val, idx) => {
-      if (knownAttrIds.has(val.attribute_id) && val.attribute_id < 1000) {
-        attrMap[val.attribute_id] = val.value;
-      } else {
-        customList.push({
-          id: `col-${idx}-${Date.now()}`,
-          name: val.attribute_name || val.attribute_key || 'Specification',
+    if (p.attributes && p.attributes.length > 0) {
+      p.attributes.forEach((val, idx) => {
+        const rawLabel = (val.attribute_name || val.attribute_key || 'Specification').trim();
+        const norm = rawLabel.toLowerCase();
+        
+        // Strict deduplication: skip if already added
+        if (seenLabels.has(norm)) return;
+        seenLabels.add(norm);
+
+        const matchedGlobal = attributes.find(a => 
+          a.name.toLowerCase() === norm || a.key.toLowerCase() === (val.attribute_key || '').toLowerCase()
+        );
+
+        loadedBoxes.push({
+          id: `spec-${idx}-${Date.now()}`,
+          label: rawLabel,
           value: val.value || '',
+          options: matchedGlobal?.options_json || undefined,
+          attribute_id: val.attribute_id,
         });
-      }
-    });
-    setDynamicValues(attrMap);
-    setCustomColumns(customList);
+      });
+    }
+
+    if (loadedBoxes.length === 0) {
+      setSpecBoxes([
+        { id: 'sb-1', label: 'Wheel Size', value: '', options: ['20 inches', '24 inches', '26 inches', '27.5 inches', '29 inches', '700C'] },
+        { id: 'sb-2', label: 'Gear Count', value: '', options: ['Single Speed', '7 Speed', '18 Speed', '21 Speed', '24 Speed'] },
+        { id: 'sb-3', label: 'Brake Type', value: '', options: ['V-Brakes', 'Mechanical Disc Brakes', 'Hydraulic Disc Brakes', 'Caliper Brakes'] },
+        { id: 'sb-4', label: 'Frame Material', value: '', options: ['Steel', 'Alloy (Aluminium 6061)', 'Carbon Fibre'] },
+        { id: 'sb-5', label: 'Suspension', value: '', options: ['Rigid', 'Front Suspension', 'Dual Suspension'] },
+        { id: 'sb-6', label: 'Frame Size', value: '', options: ['16 inch', '18 inch', '20 inch'] },
+      ]);
+    } else {
+      setSpecBoxes(loadedBoxes);
+    }
     setStagedFiles([]);
     setStagedPreviews([]);
     setEditModalOpen(true);
@@ -256,20 +396,13 @@ export const AdminCatalogueStudioPage: React.FC = () => {
     setSaving(true);
 
     try {
-      const standardAttrs = Object.entries(dynamicValues)
-        .filter(([_, val]) => val !== '' && val !== null && val !== undefined)
-        .map(([attrId, val]) => ({
-          attribute_id: Number(attrId),
-          value: String(val),
-        }));
-
-      const dynamicCustomAttrs = customColumns
-        .filter(c => c.name.trim() && c.value.trim())
-        .map((c, idx) => ({
-          attribute_id: 1000 + idx,
-          attribute_name: c.name.trim(),
-          attribute_key: c.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_'),
-          value: c.value.trim(),
+      const attributesPayload = specBoxes
+        .filter(b => b.label.trim())
+        .map((b, idx) => ({
+          attribute_id: b.attribute_id || (1000 + idx),
+          attribute_name: b.label.trim(),
+          attribute_key: b.label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+          value: b.value.trim(),
           show_in_specs: true,
           show_in_card: true,
         }));
@@ -289,7 +422,7 @@ export const AdminCatalogueStudioPage: React.FC = () => {
         is_published: true,
         is_featured: false,
         is_new_arrival: true,
-        attributes: [...standardAttrs, ...dynamicCustomAttrs],
+        attributes: attributesPayload,
       };
 
       let savedProduct: Product;
@@ -610,15 +743,28 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                       <span>Camera Snap</span>
                     </button>
 
-                    {/* Photo Action Overlay Button */}
-                    <button
-                      type="button"
-                      onClick={() => setPhotoModalProduct(product)}
-                      className="absolute bottom-3 right-3 px-2.5 py-1.5 bg-black/75 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold flex items-center gap-1.5 backdrop-blur-sm transition shadow"
-                    >
-                      <Camera className="w-3.5 h-3.5" />
-                      <span>{primaryImg ? 'Change / Add Photos' : 'Upload Photograph'}</span>
-                    </button>
+                    {/* Photo Action Overlay Buttons */}
+                    <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPhotoModalProduct(product)}
+                        className="px-2.5 py-1.5 bg-black/75 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm transition shadow"
+                        title="Change or upload photos"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>{primaryImg ? 'Photos' : 'Upload'}</span>
+                      </button>
+                      {primaryImg && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePrimaryPhoto(product)}
+                          className="p-1.5 bg-black/75 hover:bg-rose-600 text-white rounded-xl text-[10px] font-bold backdrop-blur-sm transition shadow"
+                          title="Delete primary photograph"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
 
                     {/* Demo Flag Badge */}
                     {product.is_demo && (
@@ -716,15 +862,27 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Edit Bicycle Button */}
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(product)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 rounded-xl font-bold text-[11px] transition"
-                  >
-                    <Edit className="w-3 h-3" />
-                    <span>Edit Details</span>
-                  </button>
+                  {/* Action Buttons: Edit and Delete */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(product)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 rounded-xl font-bold text-[11px] transition shadow-sm"
+                      title="Edit bicycle details and specifications"
+                    >
+                      <Edit className="w-3 h-3 text-emerald-600" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProduct(product)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-bold text-[11px] transition shadow-sm"
+                      title="Delete this bicycle"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -817,7 +975,7 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                         setPhotoModalProduct(updated);
                         setProducts(prev => prev.map(p => p.id === updated.id ? updated : p));
                       }}
-                      className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded opacity-0 group-hover:opacity-100 transition"
+                      className="absolute top-1 right-1 p-1 bg-rose-600 hover:bg-rose-700 text-white rounded shadow transition"
                       title="Delete photo"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -850,23 +1008,35 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                   Enter bicycle specifications, showroom selling price, custom columns, and attach photographs.
                 </p>
               </div>
-              {/* Form Column Layout Selector */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
-                <span className="text-[10px] font-bold text-slate-500 px-1.5">Form Layout:</span>
+              {/* Form Controls: Column Layout & Google Form Import */}
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
                 <button
                   type="button"
-                  onClick={() => setFormCols(1)}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold transition ${formCols === 1 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                  onClick={() => setGoogleFormModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-300 transition shadow-sm"
+                  title="Populate details from Google Form or Google Sheet response"
                 >
-                  1 Col
+                  <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Import from Google Form</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFormCols(2)}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold transition ${formCols === 2 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                >
-                  2 Cols
-                </button>
+
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-500 px-1.5">Cols:</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormCols(1)}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition ${formCols === 1 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                  >
+                    1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormCols(2)}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition ${formCols === 2 ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                  >
+                    2
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -975,100 +1145,87 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Dynamic Specifications */}
+              {/* Unified Bicycle Specifications & Dynamic Input Boxes */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <span className="font-bold text-slate-900 text-xs block">
-                  Bicycle Technical Specifications (साइकिल की विशेषताएं)
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {attributes.map((attr) => {
-                    const currentVal = dynamicValues[attr.id] || '';
-                    return (
-                      <div key={attr.id} className="space-y-1">
-                        <label className="block font-semibold text-slate-700 text-[11px]">
-                          {attr.name} {attr.unit ? `(${attr.unit})` : ''}
-                        </label>
-                        {attr.field_type === 'dropdown' && attr.options_json ? (
-                          <select
-                            value={currentVal}
-                            onChange={(e) => setDynamicValues({ ...dynamicValues, [attr.id]: e.target.value })}
-                            className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white"
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
+                  <div>
+                    <span className="font-black text-slate-900 text-xs block">
+                      Bicycle Specifications & Input Boxes (साइकिल की विशेषताएं और बॉक्स)
+                    </span>
+                    <span className="text-[11px] text-slate-500 block">
+                      Edit/rename any label directly, enter values, delete unwanted boxes, or add new specification boxes.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={handleCleanDuplicates}
+                      className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1 shadow-sm transition"
+                      title="Remove any duplicate specification boxes"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Clean Duplicates</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddSpecBox}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Add Specification Box</span>
+                    </button>
+                  </div>
+                </div>
+
+                {specBoxes.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-slate-300 rounded-xl bg-white text-slate-400 text-xs">
+                    No specification boxes configured. Click <strong>+ Add Specification Box</strong> to add features.
+                  </div>
+                ) : (
+                  <div className={formCols === 1 ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-3'}>
+                    {specBoxes.map((box) => (
+                      <div key={box.id} className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-sm space-y-1.5 hover:border-emerald-500/50 transition">
+                        {/* Editable Label & Delete Box Icon */}
+                        <div className="flex items-center justify-between gap-1.5">
+                          <input
+                            type="text"
+                            value={box.label}
+                            onChange={(e) => handleRenameSpecLabel(box.id, e.target.value)}
+                            placeholder="Label (e.g. Frame Size, Battery, Weight)"
+                            className="text-[11px] font-bold text-slate-800 bg-slate-50 hover:bg-slate-100 focus:bg-white px-2 py-1 rounded-lg border border-slate-200 focus:border-emerald-500 focus:outline-none flex-1 truncate"
+                            title="Click to rename this label"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSpecBox(box.id)}
+                            className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 transition flex-shrink-0"
+                            title="Delete this specification box"
                           >
-                            <option value="">Select {attr.name}...</option>
-                            {attr.options_json.map((opt) => (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Value Input Box (Dropdown if options exist, otherwise text) */}
+                        {box.options && box.options.length > 0 ? (
+                          <select
+                            value={box.value}
+                            onChange={(e) => handleUpdateSpecValue(box.id, e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:border-emerald-500 focus:outline-none text-slate-800"
+                          >
+                            <option value="">Select {box.label}...</option>
+                            {box.options.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>
                         ) : (
                           <input
                             type="text"
-                            value={currentVal}
-                            onChange={(e) => setDynamicValues({ ...dynamicValues, [attr.id]: e.target.value })}
-                            placeholder={`Enter ${attr.name}...`}
-                            className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200"
+                            value={box.value}
+                            onChange={(e) => handleUpdateSpecValue(box.id, e.target.value)}
+                            placeholder={`Enter ${box.label}...`}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:border-emerald-500 focus:outline-none text-slate-800"
                           />
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Dynamic Custom Columns & Specifications Section */}
-              <div className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-200/80 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <span className="font-bold text-slate-900 text-xs block">
-                      Custom Columns & Specifications (कस्टम कॉलम / विशेषताएं जोड़ें)
-                    </span>
-                    <span className="text-[11px] text-slate-600 block">
-                      Add and adjust custom fields for this bicycle (e.g. Carrier, Battery, Weight, Tyre Width, Suspension, Stand)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleAddCustomColumn}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition self-start sm:self-auto"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Add Custom Column</span>
-                  </button>
-                </div>
-
-                {customColumns.length === 0 ? (
-                  <div className="text-center py-3 border border-dashed border-emerald-300 rounded-xl bg-white text-slate-500 text-xs">
-                    No custom columns added yet. Click <strong>+ Add Custom Column</strong> to add features like Carrier, Battery, or Weight.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {customColumns.map((col) => (
-                      <div key={col.id} className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-emerald-200 shadow-sm">
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            placeholder="Column Name (e.g. Carrier, Battery)"
-                            value={col.name}
-                            onChange={(e) => handleUpdateCustomColumn(col.id, 'name', e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 font-bold text-slate-800"
-                          />
-                        </div>
-                        <div className="flex-[1.5]">
-                          <input
-                            type="text"
-                            placeholder="Value (e.g. Heavy Duty Steel Carrier Included)"
-                            value={col.value}
-                            onChange={(e) => handleUpdateCustomColumn(col.id, 'value', e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 text-slate-700"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCustomColumn(col.id)}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition"
-                          title="Remove Column"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     ))}
                   </div>
@@ -1145,6 +1302,53 @@ export const AdminCatalogueStudioPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* GOOGLE FORM / GOOGLE SHEET RESPONSE IMPORT MODAL */}
+      {googleFormModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative space-y-4">
+            <button
+              onClick={() => setGoogleFormModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-emerald-600" />
+              <h3 className="text-lg font-black text-slate-900">
+                Import from Google Form Response
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500">
+              Paste the submitted Google Form responses, Google Sheet row, or key:value lines (English or हिंदी). The bicycle name, pricing, brand, category, and specification boxes will be populated automatically into the form.
+            </p>
+            <textarea
+              rows={6}
+              value={googleFormRawText}
+              onChange={(e) => setGoogleFormRawText(e.target.value)}
+              placeholder="Paste here (e.g. Bicycle Name: AVON Elements, Brand: AVON, Selling Price: 6499, Wheel Size: 26T, Gear Count: 21 Speed, Carrier: Included)"
+              className="w-full p-3 text-xs rounded-xl border border-slate-200 font-mono focus:outline-none focus:border-emerald-500 resize-none"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setGoogleFormModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-xl font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyGoogleForm}
+                disabled={!googleFormRawText.trim()}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl font-bold disabled:opacity-50"
+              >
+                Apply to Form
+              </button>
+            </div>
           </div>
         </div>
       )}

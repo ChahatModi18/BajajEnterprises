@@ -84,3 +84,4 @@ export function fileToDataUrl(file: File | Blob): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+

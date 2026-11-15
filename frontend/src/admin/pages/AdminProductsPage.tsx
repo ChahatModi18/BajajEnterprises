@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { 
   Bike, Plus, Edit, Copy, Trash2, Search, 
-  Check, X, Upload, Star, Eye, Image as ImageIcon, AlertCircle 
+  Check, X, Upload, Star, Eye, Image as ImageIcon, AlertCircle,
+  FileText, Sparkles
 } from 'lucide-react';
 import { Product, Brand, Category, ProductAttribute } from '../../types';
 import { apiRequest } from '../../utils/api';
 import { compressImageForMobile } from '../../utils/imageUtils';
+import { parseGoogleFormResponseText } from '../../utils/googleFormParser';
 import { LayoutGrid, Grid } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -34,6 +36,21 @@ export const AdminProductsPage: React.FC = () => {
     return Number(localStorage.getItem('bajaj_products_grid_cols')) || 3;
   });
 
+  // Unified Specification Boxes (Editable labels, values, deletable, addable, columns)
+  interface SpecBoxItem {
+    id: string;
+    label: string;
+    value: string;
+    options?: string[];
+    attribute_id?: number;
+  }
+  const [specBoxes, setSpecBoxes] = useState<SpecBoxItem[]>([]);
+  const [formCols, setFormCols] = useState<number>(2);
+
+  // Google Form Response Import Modal State
+  const [googleFormModalOpen, setGoogleFormModalOpen] = useState(false);
+  const [googleFormRawText, setGoogleFormRawText] = useState('');
+
   // Form state
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
@@ -57,6 +74,91 @@ export const AdminProductsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Specification Box Handlers (Rename, Update, Delete, Add, Deduplicate)
+  const handleRenameSpecLabel = (id: string, newLabel: string) => {
+    setSpecBoxes(prev => prev.map(b => b.id === id ? { ...b, label: newLabel } : b));
+  };
+
+  const handleUpdateSpecValue = (id: string, newVal: string) => {
+    setSpecBoxes(prev => prev.map(b => b.id === id ? { ...b, value: newVal } : b));
+  };
+
+  const handleDeleteSpecBox = (id: string) => {
+    setSpecBoxes(prev => prev.filter(b => b.id !== id));
+  };
+
+  const handleAddSpecBox = () => {
+    setSpecBoxes(prev => [
+      ...prev,
+      {
+        id: `spec-${Date.now()}-${Math.random().toString().slice(2, 6)}`,
+        label: 'New Specification',
+        value: '',
+      }
+    ]);
+  };
+
+  const handleCleanDuplicates = () => {
+    const seen = new Set<string>();
+    setSpecBoxes(prev => prev.filter(b => {
+      const k = b.label.toLowerCase().trim();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }));
+    setSuccessMsg('Duplicate specification boxes cleaned!');
+    setTimeout(() => setSuccessMsg(null), 2500);
+  };
+
+  // Google Form Response Ingestion Handler
+  const handleApplyGoogleForm = () => {
+    const parsed = parseGoogleFormResponseText(googleFormRawText);
+    if (!parsed) {
+      alert('Could not detect bicycle details from pasted text. Please paste valid form text.');
+      return;
+    }
+    if (parsed.name) setName(parsed.name);
+    if (parsed.sellingPrice) setSellingPrice(parsed.sellingPrice);
+    if (parsed.mrp) setMrp(parsed.mrp);
+    if (parsed.stockQuantity) setStockQuantity(parsed.stockQuantity);
+    if (parsed.warrantyInfo) setWarrantyInfo(parsed.warrantyInfo);
+    if (parsed.description) setDescription(parsed.description);
+
+    if (parsed.brandName && brands.length > 0) {
+      const bMatch = brands.find(b => b.name.toLowerCase().includes(parsed.brandName!.toLowerCase()));
+      if (bMatch) setBrandId(bMatch.id);
+    }
+    if (parsed.categoryName && categories.length > 0) {
+      const cMatch = categories.find(c => c.name.toLowerCase().includes(parsed.categoryName!.toLowerCase()));
+      if (cMatch) setCategoryId(cMatch.id);
+    }
+
+    if (parsed.specBoxes.length > 0) {
+      const newBoxes: SpecBoxItem[] = parsed.specBoxes.map((sb, idx) => ({
+        id: `gf-spec-${idx}-${Date.now()}`,
+        label: sb.label,
+        value: sb.value
+      }));
+      setSpecBoxes(prev => {
+        const merged = [...prev];
+        newBoxes.forEach(nb => {
+          const existingIdx = merged.findIndex(m => m.label.toLowerCase() === nb.label.toLowerCase());
+          if (existingIdx >= 0) {
+            merged[existingIdx].value = nb.value;
+          } else {
+            merged.push(nb);
+          }
+        });
+        return merged;
+      });
+    }
+
+    setGoogleFormModalOpen(false);
+    setGoogleFormRawText('');
+    setSuccessMsg('Bicycle details populated from Google Form response!');
+    setTimeout(() => setSuccessMsg(null), 3000);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -102,6 +204,35 @@ export const AdminProductsPage: React.FC = () => {
     setIsNewArrival(true);
     setIsPublished(true);
     setDynamicValues({});
+    
+    // Initialize deduplicated specification boxes
+    const initialBoxes: SpecBoxItem[] = [];
+    const seen = new Set<string>();
+    if (attributes && attributes.length > 0) {
+      attributes.forEach(a => {
+        const norm = a.name.toLowerCase().trim();
+        if (!seen.has(norm)) {
+          seen.add(norm);
+          initialBoxes.push({
+            id: `attr-${a.id}`,
+            label: a.name,
+            value: a.options_json && a.options_json.length > 0 ? a.options_json[0] : '',
+            options: a.options_json || undefined,
+            attribute_id: a.id,
+          });
+        }
+      });
+    }
+    if (initialBoxes.length === 0) {
+      initialBoxes.push(
+        { id: 'sb-1', label: 'Wheel Size', value: '26 inches', options: ['20 inches', '24 inches', '26 inches', '27.5 inches', '29 inches', '700C'] },
+        { id: 'sb-2', label: 'Gear Count', value: 'Single Speed', options: ['Single Speed', '7 Speed', '18 Speed', '21 Speed', '24 Speed'] },
+        { id: 'sb-3', label: 'Brake Type', value: 'V-Brakes', options: ['V-Brakes', 'Mechanical Disc Brakes', 'Hydraulic Disc Brakes', 'Caliper Brakes'] },
+        { id: 'sb-4', label: 'Frame Material', value: 'Steel', options: ['Steel', 'Alloy (Aluminium 6061)', 'Carbon Fibre'] },
+        { id: 'sb-5', label: 'Frame Size', value: '18 inch', options: ['16 inch', '18 inch', '20 inch'] }
+      );
+    }
+    setSpecBoxes(initialBoxes);
     setErrorMsg(null);
     setModalOpen(true);
   };
@@ -129,6 +260,51 @@ export const AdminProductsPage: React.FC = () => {
       valMap[a.attribute_id] = a.value;
     });
     setDynamicValues(valMap);
+
+    // Populate deduplicated specification boxes
+    const loadedBoxes: SpecBoxItem[] = [];
+    const seenLabels = new Set<string>();
+
+    if (p.attributes && p.attributes.length > 0) {
+      p.attributes.forEach((pa, idx) => {
+        const rawLabel = (pa.attribute_name || pa.attribute_key || (pa as any).name || 'Specification').trim();
+        const norm = rawLabel.toLowerCase();
+        if (seenLabels.has(norm)) return;
+        seenLabels.add(norm);
+
+        const matchedGlobal = attributes.find(a =>
+          a.id === pa.attribute_id ||
+          a.name.toLowerCase() === norm ||
+          a.key.toLowerCase() === (pa.attribute_key || '').toLowerCase()
+        );
+
+        loadedBoxes.push({
+          id: `spec-${idx}-${Date.now()}`,
+          label: rawLabel,
+          value: String(pa.value || ''),
+          options: matchedGlobal?.options_json || undefined,
+          attribute_id: pa.attribute_id,
+        });
+      });
+    }
+
+    if (loadedBoxes.length === 0) {
+      attributes.forEach(a => {
+        const norm = a.name.toLowerCase().trim();
+        if (!seenLabels.has(norm)) {
+          seenLabels.add(norm);
+          loadedBoxes.push({
+            id: `attr-${a.id}`,
+            label: a.name,
+            value: '',
+            options: a.options_json || undefined,
+            attribute_id: a.id,
+          });
+        }
+      });
+    }
+
+    setSpecBoxes(loadedBoxes);
     setErrorMsg(null);
     setModalOpen(true);
   };
@@ -143,10 +319,13 @@ export const AdminProductsPage: React.FC = () => {
     setSaving(true);
     setErrorMsg(null);
 
-    const attrInputs = Object.entries(dynamicValues).map(([attrId, val]) => ({
-      attribute_id: Number(attrId),
-      value: val,
-    }));
+    const attrInputs = specBoxes
+      .filter(b => b.label.trim())
+      .map(b => ({
+        attribute_id: b.attribute_id,
+        name: b.label.trim(),
+        value: b.value.trim(),
+      }));
 
     const payload = {
       name: name.trim(),
@@ -535,12 +714,25 @@ export const AdminProductsPage: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-xl font-black text-slate-900 mb-1">
-              {editingProduct ? 'Edit Bicycle Details' : 'Add New Bicycle to Catalogue'}
-            </h3>
-            <p className="text-xs text-slate-500 mb-6">
-              Configure product details, stock, pricing, and dynamic specifications.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pr-8">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 mb-1">
+                  {editingProduct ? 'Edit Bicycle Details' : 'Add New Bicycle to Catalogue'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Configure product details, stock, pricing, and dynamic specifications.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGoogleFormModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-300 transition shadow-sm self-start sm:self-auto"
+                title="Fetch & populate bicycle details from Google Form or Google Sheet response"
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Import from Google Form</span>
+              </button>
+            </div>
 
             {errorMsg && (
               <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
@@ -653,56 +845,113 @@ export const AdminProductsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Dynamic Specifications Editor */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-xs uppercase tracking-wide">
-                    Dynamic Technical Specifications
-                  </span>
-                  <span className="text-[10px] text-slate-500">Configured via Manage Product Fields</span>
+              {/* Dynamic Specifications Boxes (Fully Editable Labels, Values, Addable & Deletable) */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/90 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+                  <div>
+                    <span className="font-black text-slate-900 text-xs uppercase tracking-wide block">
+                      Bicycle Technical Specifications (साइकिल की विशेषताएं)
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Rename labels directly, delete any box, or add custom boxes.
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Columns layout toggle */}
+                    <div className="flex items-center bg-white p-0.5 rounded-lg border border-slate-200 text-[10px] font-bold">
+                      <span className="px-1.5 text-slate-400">Cols:</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormCols(1)}
+                        className={`px-2 py-0.5 rounded ${formCols === 1 ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                      >
+                        1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormCols(2)}
+                        className={`px-2 py-0.5 rounded ${formCols === 2 ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                      >
+                        2
+                      </button>
+                    </div>
+
+                    {/* Clean duplicate boxes */}
+                    <button
+                      type="button"
+                      onClick={handleCleanDuplicates}
+                      className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-bold rounded-lg border border-slate-200 transition"
+                      title="Remove duplicate specification boxes"
+                    >
+                      Clean Duplicates
+                    </button>
+
+                    {/* Add new box */}
+                    <button
+                      type="button"
+                      onClick={handleAddSpecBox}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-sm transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Box</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {attributes.map((attr) => {
-                    const currentVal = dynamicValues[attr.id] || '';
-                    return (
-                      <div key={attr.id} className="space-y-1">
-                        <label className="block font-semibold text-slate-700 text-[11px]">
-                          {attr.name} {attr.unit ? `(${attr.unit})` : ''}
-                        </label>
-                        {attr.field_type === 'dropdown' && attr.options_json ? (
-                          <select
-                            value={currentVal}
-                            onChange={(e) => setDynamicValues({ ...dynamicValues, [attr.id]: e.target.value })}
-                            className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white"
+                {specBoxes.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-slate-300 rounded-xl bg-white text-slate-400 text-xs">
+                    No specification boxes configured. Click <strong>+ Add Box</strong> to add technical specifications.
+                  </div>
+                ) : (
+                  <div className={formCols === 1 ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-3'}>
+                    {specBoxes.map((box) => (
+                      <div key={box.id} className="p-3 bg-white rounded-xl border border-slate-200/90 shadow-sm space-y-1.5 hover:border-emerald-500/50 transition">
+                        {/* Editable Label & Delete Box Icon */}
+                        <div className="flex items-center justify-between gap-1.5">
+                          <input
+                            type="text"
+                            value={box.label}
+                            onChange={(e) => handleRenameSpecLabel(box.id, e.target.value)}
+                            placeholder="Label (e.g. Frame Size, Battery, Weight)"
+                            className="text-[11px] font-bold text-slate-800 bg-slate-50 hover:bg-slate-100 focus:bg-white px-2 py-1 rounded-lg border border-slate-200 focus:border-emerald-500 focus:outline-none flex-1 truncate"
+                            title="Click to rename this label"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSpecBox(box.id)}
+                            className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 transition flex-shrink-0"
+                            title="Delete this specification box"
                           >
-                            <option value="">Select {attr.name}...</option>
-                            {attr.options_json.map((opt) => (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Value Input Box (Dropdown if options exist, otherwise text) */}
+                        {box.options && box.options.length > 0 ? (
+                          <select
+                            value={box.value}
+                            onChange={(e) => handleUpdateSpecValue(box.id, e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:border-emerald-500 focus:outline-none text-slate-800"
+                          >
+                            <option value="">Select {box.label}...</option>
+                            {box.options.map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>
-                        ) : attr.field_type === 'boolean' ? (
-                          <select
-                            value={currentVal ? 'true' : 'false'}
-                            onChange={(e) => setDynamicValues({ ...dynamicValues, [attr.id]: e.target.value === 'true' })}
-                            className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white"
-                          >
-                            <option value="false">No</option>
-                            <option value="true">Yes</option>
-                          </select>
                         ) : (
                           <input
-                            type={attr.field_type === 'number' || attr.field_type === 'decimal' ? 'number' : 'text'}
-                            value={currentVal}
-                            onChange={(e) => setDynamicValues({ ...dynamicValues, [attr.id]: e.target.value })}
-                            placeholder={`Enter ${attr.name}...`}
-                            className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200"
+                            type="text"
+                            value={box.value}
+                            onChange={(e) => handleUpdateSpecValue(box.id, e.target.value)}
+                            placeholder={`Enter ${box.label}...`}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:border-emerald-500 focus:outline-none text-slate-800"
                           />
                         )}
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -768,6 +1017,53 @@ export const AdminProductsPage: React.FC = () => {
         </div>
       )}
 
+      {/* Google Form / Google Sheet Response Import Modal */}
+      {googleFormModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative space-y-4">
+            <button
+              onClick={() => setGoogleFormModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-emerald-600" />
+              <h3 className="text-lg font-black text-slate-900">
+                Import from Google Form Response
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500">
+              Paste the submitted Google Form responses, Google Sheet row, or key:value lines (English or हिंदी). The bicycle name, pricing, brand, category, and specification boxes will be populated automatically into the form.
+            </p>
+            <textarea
+              rows={6}
+              value={googleFormRawText}
+              onChange={(e) => setGoogleFormRawText(e.target.value)}
+              placeholder="Paste here (e.g. Bicycle Name: AVON Elements, Brand: AVON, Selling Price: 6499, Wheel Size: 26T, Gear Count: 21 Speed, Carrier: Included)"
+              className="w-full p-3 text-xs rounded-xl border border-slate-200 font-mono focus:outline-none focus:border-emerald-500 resize-none"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setGoogleFormModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-xl font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyGoogleForm}
+                disabled={!googleFormRawText.trim()}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-xl font-bold disabled:opacity-50"
+              >
+                Apply to Form
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Image Management Modal */}
       {imageModalProduct && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -790,10 +1086,10 @@ export const AdminProductsPage: React.FC = () => {
               <label className="block p-6 border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl text-center cursor-pointer bg-slate-50 transition">
                 <Upload className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
                 <span className="text-xs font-bold text-slate-800 block">Click to Upload Bicycle Photograph</span>
-                <span className="text-[10px] text-slate-400 block mt-1">Supports JPG, PNG, and WEBP images up to 10 MB</span>
+                <span className="text-[10px] text-slate-400 block mt-1">Direct from mobile gallery or camera (auto-compressed)</span>
                 <input
                   type="file"
-                  accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                  accept="image/*"
                   onChange={(e) => {
                     if (e.target.files?.[0]) handleImageUpload(e.target.files[0]);
                   }}
@@ -801,7 +1097,7 @@ export const AdminProductsPage: React.FC = () => {
                 />
               </label>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {imageModalProduct.images?.map((img) => (
                   <div key={img.id} className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden border border-slate-200 p-1 group">
                     <img src={img.image_url} alt="" className="w-full h-full object-contain" />
@@ -829,9 +1125,10 @@ export const AdminProductsPage: React.FC = () => {
                         setImageModalProduct(updated);
                         loadData();
                       }}
-                      className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded opacity-0 group-hover:opacity-100 transition"
+                      className="absolute top-1 right-1 p-1.5 bg-rose-600 text-white rounded-lg shadow transition opacity-90 sm:opacity-0 sm:group-hover:opacity-100"
+                      title="Delete photograph"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}

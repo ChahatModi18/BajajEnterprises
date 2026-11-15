@@ -226,3 +226,4 @@ export const NotifyMeModal: React.FC<NotifyMeModalProps> = ({
     </div>
   );
 };
+

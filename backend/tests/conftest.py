@@ -30,3 +30,4 @@ def initialize_test_database():
         db.commit()
     db.close()
     yield
+
