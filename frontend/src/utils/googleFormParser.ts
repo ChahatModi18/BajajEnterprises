@@ -30,7 +30,7 @@ export function parseGoogleFormResponseText(text: string): ParsedGoogleFormBicyc
       Object.entries(obj).forEach(([k, v]) => {
         if (v !== null && v !== undefined) rowMap[k] = String(v);
       });
-    } catch {}
+    } catch { }
   }
 
   // 2. Try parsing key: value lines (e.g. copied from Google Form summary or email)

@@ -127,3 +127,4 @@ def test_google_form_edge_cases():
     assert bike["warranty_info"] == "1 Year Manufacturer Frame Warranty"
     assert bike["stock_quantity"] == 5
     assert bike["is_published"] is True
+

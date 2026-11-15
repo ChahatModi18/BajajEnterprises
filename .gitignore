@@ -21,3 +21,5 @@ backend/uploads/*
 backend/.env
 backend-node/.env
 .vercel/
+.vercel
+.env*
