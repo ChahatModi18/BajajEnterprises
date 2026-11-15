@@ -207,7 +207,8 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
         website_url: bodyData.website_url || null,
         country_of_origin: bodyData.country_of_origin || 'India',
         is_active: bodyData.is_active !== undefined ? bodyData.is_active : true,
-        sort_order: brandList.length + 1
+        sort_order: brandList.length + 1,
+        custom_boxes: bodyData.custom_boxes || []
       };
       brandList.push(newBrand);
       if (typeof window !== 'undefined') localStorage.setItem('bajaj_custom_brands', JSON.stringify(brandList));
@@ -251,7 +252,8 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
         description: bodyData.description || '',
         image_url: bodyData.image_url || null,
         is_active: bodyData.is_active !== undefined ? bodyData.is_active : true,
-        sort_order: categoryList.length + 1
+        sort_order: categoryList.length + 1,
+        custom_boxes: bodyData.custom_boxes || []
       };
       categoryList.push(newCat);
       if (typeof window !== 'undefined') localStorage.setItem('bajaj_custom_categories', JSON.stringify(categoryList));
@@ -342,9 +344,66 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
     return attrList as unknown as T;
   }
 
-  // Handle Banners
-  if (cleanEndpoint === '/banners') {
-    return fallbackBanners as unknown as T;
+  // Handle Banners CRUD (Storefront Hero Carousel & Admin Banner Management)
+  if (cleanEndpoint === '/banners' || cleanEndpoint.startsWith('/banners/')) {
+    const rawSaved = typeof window !== 'undefined' ? localStorage.getItem('bajaj_custom_banners') : null;
+    let bannerList = rawSaved ? JSON.parse(rawSaved) : [...fallbackBanners];
+
+    if (method === 'POST') {
+      let bodyData: any = {};
+      try { if (typeof options.body === 'string') bodyData = JSON.parse(options.body); } catch {}
+      let imageUrl = bodyData.image_url || '/banners/banner_avon_geared.svg';
+      if (typeof window !== 'undefined' && (window as any).__lastUploadedImageDataUrl) {
+        imageUrl = (window as any).__lastUploadedImageDataUrl;
+      }
+      const newBanner = {
+        id: Date.now(),
+        title: bodyData.title || 'Grand Festive Bicycle Carnival',
+        subtitle: bodyData.subtitle || 'Bajaj Enterprises - Kote Gate, Bikaner',
+        image_url: imageUrl,
+        link_url: bodyData.link_url || '/shop',
+        button_text: bodyData.button_text || 'Explore Range',
+        is_active: bodyData.is_active !== undefined ? bodyData.is_active : true,
+        sort_order: bodyData.sort_order ?? (bannerList.length + 1),
+      };
+      bannerList.unshift(newBanner);
+      if (typeof window !== 'undefined') localStorage.setItem('bajaj_custom_banners', JSON.stringify(bannerList));
+      return newBanner as unknown as T;
+    }
+
+    if (cleanEndpoint.startsWith('/banners/') && (method === 'PUT' || method === 'PATCH')) {
+      const bId = Number(cleanEndpoint.replace('/banners/', ''));
+      let bodyData: any = {};
+      try { if (typeof options.body === 'string') bodyData = JSON.parse(options.body); } catch {}
+      let imageUrl = bodyData.image_url;
+      if (!imageUrl && typeof window !== 'undefined' && (window as any).__lastUploadedImageDataUrl) {
+        imageUrl = (window as any).__lastUploadedImageDataUrl;
+      }
+      const idx = bannerList.findIndex((b: any) => b.id === bId);
+      if (idx >= 0) {
+        bannerList[idx] = { 
+          ...bannerList[idx], 
+          ...bodyData,
+          ...(imageUrl ? { image_url: imageUrl } : {})
+        };
+        if (typeof window !== 'undefined') localStorage.setItem('bajaj_custom_banners', JSON.stringify(bannerList));
+        return bannerList[idx] as unknown as T;
+      }
+    }
+
+    if (cleanEndpoint.startsWith('/banners/') && method === 'DELETE') {
+      const bId = Number(cleanEndpoint.replace('/banners/', ''));
+      bannerList = bannerList.filter((b: any) => b.id !== bId);
+      if (typeof window !== 'undefined') localStorage.setItem('bajaj_custom_banners', JSON.stringify(bannerList));
+      return { message: 'Banner deleted successfully' } as unknown as T;
+    }
+
+    // Storefront public view
+    if (cleanEndpoint === '/banners' && method === 'GET') {
+      return bannerList.filter((b: any) => b.is_active !== false) as unknown as T;
+    }
+
+    return bannerList as unknown as T;
   }
 
   // Handle Schemes
@@ -591,7 +650,11 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
         is_featured: bodyData.is_featured ?? false,
         is_new_arrival: bodyData.is_new_arrival ?? true,
         attributes: bodyData.attributes || [],
-        images: [],
+        images: Array.isArray(bodyData.images) && bodyData.images.length > 0
+          ? bodyData.images
+          : (typeof window !== 'undefined' && (window as any).__lastUploadedImageDataUrl
+              ? [{ id: Date.now(), image_url: (window as any).__lastUploadedImageDataUrl, thumbnail_url: (window as any).__lastUploadedImageDataUrl, is_primary: true, sort_order: 1 }]
+              : []),
         brand: fallbackBrands.find((b: any) => b.id === Number(bodyData.brand_id)) || fallbackBrands[0],
         category: fallbackCategories.find((c: any) => c.id === Number(bodyData.category_id)) || fallbackCategories[0],
       };
@@ -646,6 +709,9 @@ function resolveFallback<T>(endpoint: string, options: RequestInit = {}): T {
         products[prodIndex] = {
           ...products[prodIndex],
           ...bodyData,
+          images: Array.isArray(bodyData.images) && bodyData.images.length > 0
+            ? bodyData.images
+            : products[prodIndex].images,
           brand: fallbackBrands.find((b: any) => b.id === Number(bodyData.brand_id || products[prodIndex].brand_id)) || products[prodIndex].brand,
           category: fallbackCategories.find((c: any) => c.id === Number(bodyData.category_id || products[prodIndex].category_id)) || products[prodIndex].category,
         };

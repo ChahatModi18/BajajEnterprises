@@ -407,6 +407,14 @@ export const AdminCatalogueStudioPage: React.FC = () => {
           show_in_card: true,
         }));
 
+      const initialImages = stagedPreviews.map((url, idx) => ({
+        id: Date.now() + idx,
+        image_url: url,
+        thumbnail_url: url,
+        is_primary: idx === 0,
+        sort_order: idx + 1,
+      }));
+
       const payload: any = {
         name,
         sku,
@@ -423,6 +431,7 @@ export const AdminCatalogueStudioPage: React.FC = () => {
         is_featured: false,
         is_new_arrival: true,
         attributes: attributesPayload,
+        images: initialImages.length > 0 ? initialImages : (editingProduct?.images || []),
       };
 
       let savedProduct: Product;

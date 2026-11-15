@@ -1,3 +1,9 @@
+export interface CustomBoxItem {
+  id: string | number;
+  label: string;
+  value: string;
+}
+
 export interface Brand {
   id: number;
   name: string;
@@ -6,6 +12,7 @@ export interface Brand {
   logo_url?: string;
   is_active: boolean;
   sort_order: number;
+  custom_boxes?: CustomBoxItem[];
 }
 
 export interface Category {
@@ -16,6 +23,7 @@ export interface Category {
   image_url?: string;
   is_active: boolean;
   sort_order: number;
+  custom_boxes?: CustomBoxItem[];
 }
 
 export interface ProductAttribute {
